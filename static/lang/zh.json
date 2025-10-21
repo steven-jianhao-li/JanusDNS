@@ -1,5 +1,5 @@
 {
-    "appTitle": "DNS 响应器",
+    "appTitle": "JanusDNS",
     "controlsTitle": "控制",
     "startBtn": "开始监听",
     "stopBtn": "停止监听",
@@ -10,7 +10,7 @@
     "tabEditor": "编辑器",
     "tabLogs": "日志",
     "ruleNameLabel": "规则名称",
-    "ruleNamePlaceholder": "例如：屏蔽谷歌DNS",
+    "ruleNamePlaceholder": "例如：检测请求google.com的DNS包",
     "ruleEnabledLabel": "已启用",
     "saveRuleBtn": "保存规则",
     "deleteRuleBtn": "删除规则",

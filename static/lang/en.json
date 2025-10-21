@@ -1,5 +1,5 @@
 {
-    "appTitle": "DNS Responder",
+    "appTitle": "JanusDNS",
     "controlsTitle": "Controls",
     "startBtn": "Start Listening",
     "stopBtn": "Stop Listening",
@@ -10,7 +10,7 @@
     "tabEditor": "Editor",
     "tabLogs": "Logs",
     "ruleNameLabel": "Rule Name",
-    "ruleNamePlaceholder": "e.g., Block Google DNS",
+    "ruleNamePlaceholder": "e.g., Detect DNS for Google.com",
     "ruleEnabledLabel": "Enabled",
     "saveRuleBtn": "Save Rule",
     "deleteRuleBtn": "Delete Rule",
