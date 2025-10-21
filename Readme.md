@@ -33,7 +33,7 @@
 | 步骤编号 | 任务描述 | 逻辑实现细节 |
 | :--- | :--- | :--- |
 | **2.2.1** | **加载和存储规则。** (规则必须持久化，启动后能读取，修改后能保存。) | 实现 `load_rules()` 和 `save_rules()` 函数，从 JSON 文件中读取和写入规则数组。 |
-| **2.2.2** | **规则匹配函数 (`match_rule(packet, rule)`)。** (核心比对函数，逐层进行匹配。) | 遍历用户配置的规则，对每一个规则的每个可选填字段进行比对：<br>1. **L7 (DNS) 必填字段匹配：** 检查数据包的 `DNS.qd.qname` (请求域名) 和 `DNS.qd.qtype` (请求类型) 是否与规则设置的必填值完全一致。**这是首要条件。**<br>2. **分层可选字段匹配：** 依次检查 L2/L3/L4/L7 的可选字段。如果规则中该字段为空（`""` 或 `None`），则跳过（代表不筛选）；如果不为空，则检查数据包中对应字段是否与规则配置的值完全一致。 |
+| **2.2.2** | **规则匹配函数 (`match_rule(packet, rule)`)。** (核心比对函数，逐层将收到的DNS请求包与规则进行精确比对。) | 该函数的目标是判断一个传入的DNS请求 `packet` 是否完全满足某条 `rule` 中定义的所有“触发条件 (`trigger_condition`)”。匹配过程遵循“**逐层筛选，逐字段验证**”的原则：<br><br>1. **分层可选字段匹配 (L2/L3/L4)：** 依次从链路层 (L2) 到传输层 (L4) 进行检查。对于规则中配置的任何一个字段（如 `src_mac`, `dst_ip`, `src_port`），如果该字段有具体值，则必须与数据包中对应字段的值完全一致。如果规则中该字段未配置（为 `null`），则代表“任意值 (ANY)”，跳过该字段的检查。只要有任何一个配置了的字段不匹配，则该规则立即匹配失败，函数停止并返回 `False`。<br><br>2. **应用层 DNS 核心匹配 (L7)：** 只有通过了 L2-L4 的所有检查后，才会进入最关键的 DNS 层匹配。该层匹配分为两步：<br>   - **必填项匹配：** 首先，必须检查数据包的 **请求域名 (`DNS.qd.qname`)** 和 **请求类型 (`DNS.qd.qtype`)** 是否与规则中定义的 `qname` 和 `qtype` 完全一致。这是最基础的匹配前提，如果不满足，则规则立即匹配失败。<br>   - **DNS 头部及计数器匹配：** 接下来，将根据规则中 `dns` 对象的其他可选字段，对数据包进行更精细的校验。以您提供的 `baidu.com` A记录请求包为例：<br>     - **数据包样例：**<br>       `Transaction ID: 0x9f24`<br>       `Flags: 0x0120 (rd)`<br>       `Questions: 1`<br>       `Additional RRs: 1`<br>       `Queries: baidu.com (type A)`<br><br>     - **匹配逻辑演示：**<br>       - 如果规则要求 `trigger_condition.dns.transaction_id` 为 `0x9f24`，则数据包匹配成功。<br>       - 如果规则要求 `trigger_condition.dns.flags.rd` 为 `1` (Recursion Desired)，则数据包的 Flags 字段中的 `rd` 位为1，匹配成功。<br>       - 如果规则要求 `trigger_condition.dns.qd_count` 为 `1` 且 `ar_count` 为 `1`，则数据包的 Questions 和 Additional RRs 计数均为1，匹配成功。<br>       - 如果规则要求 `an_count` 为 `0`，而数据包的 Answer RRs 计数也为0，匹配成功。<br>       - 同样，如果规则中这些值为 `null`，则不进行检查。<br><br>只有当 L2 到 L7 的所有已配置字段全部通过验证时，`match_rule` 函数才最终返回 `True`，表示该数据包成功匹配此条规则。 |
 | **2.2.3** | **匹配成功处理。** | 一旦找到第一个匹配成功的规则，立即停止比对，返回该规则对象及其编号。如果没有规则匹配，则不进行响应（默默丢弃）。 |
 
 #### 2.3. 数据包生成与响应 (`packet_handler.py`)
@@ -42,13 +42,15 @@
 
 | 步骤编号 | 任务描述 | 响应数据包字段赋值逻辑 (面向小白的复杂参数解释) |
 | :--- | :--- | :--- |
-| **2.3.1** | **生成基础响应包 (L7)。** (构建DNS响应的骨架。) | **基础层：** 创建 `Ether / IP / UDP / DNS` 结构。设置 `DNS.qr=1` (是响应包)，`DNS.ra=1` (可以递归查询)。 |
-| **2.3.2** | **填充 L7 (DNS) 继承字段。** (有些信息必须和请求包一模一样。) | 1. **Transaction ID (`id`)：** 必须选择 **`② 由触发条件的数据包实际参数决定`**，即继承自Query包的ID。客户端靠这个ID识别响应。 2. **Question Section (`qd`)：** 必须选择 **`② 由触发条件的数据包实际参数决定`**，即完全复制 Query 包的 Questions 部分。 |
-| **2.3.3** | **填充 L7 (DNS) Answer 字段。** (这才是响应的核心内容。) | 1. **Answer Count (`ancount`)：** 选择 **`① 根据用户定义的Answer记录自动计算`**。 2. **Answer Records (`an`)：** 遍历规则中配置的 Answer 记录。对于每条记录，系统自动将其 Name/Type/Class 字段设置为与触发条件Query包的 Question 一致，**只使用用户在规则中配置的 RDATA (Resource Data，例如IP地址)**。 |
-| **2.3.4** | **填充 L4 (UDP) 字段。** | 1. **源端口 (`sport`)：** **`① 由触发条件的数据包目的端口决定`** (通常是53)。 2. **目的端口 (`dport`)：** **`① 由触发条件的数据包源端口决定`** (发回给客户端的随机端口)。 |
-| **2.3.5** | **填充 L3 (IP) 字段。** | 1. **源IP (`src`)：** **`② 由触发条件的数据包目的IP决定`** (即本机监听的IP)。 2. **目的IP (`dst`)：** **`① 由触发条件的数据包源IP决定`** (发回给客户端的IP)。 |
-| **2.3.6** | **填充 L2 (Ethernet) 字段。** | 1. **源MAC (`src`)：** **`① 自动获取环境应有MAC`** (本机MAC)。 2. **目的MAC (`dst`)：** **`② 由触发条件的数据包源MAC决定`** (发回给客户端的MAC)。 |
-| **2.3.7** | **发送响应数据包。** | 使用 Scapy 的 `sendp()` (带 L2/链路层) 或 `send()` (只带 L3/网络层) 函数将构造好的响应包发送出去。 |
+| **2.3.1** | **构建DNS响应骨架 (Header & Counts)。** (这是响应包的第一部分，包含了“我是谁、我来干嘛、我带了多少信息”等元数据。) | 根据规则 `response_action` 中的 `dns_header` 进行配置：<br><br>1. **Transaction ID (`id`)**: **必须**继承自触发请求包的ID，这是客户端用来匹配问答的唯一凭证。<br><br>2. **Flags (标志位)**: 这是一个16位的字段，每一位都有特殊含义，共同决定了响应包的性质。<br>   - **`qr` (Query/Response)**: 必须设为 `1`，表明这是一个响应包。<br>   - **`opcode` (操作码)**: 通常设为 `0`，表示一个标准的查询响应。<br>   - **`aa` (Authoritative)**: 设为 `1` 表示你是这个域名的权威服务器，否则为 `0`。<br>   - **`tc` (Truncated)**: 设为 `1` 表示响应太长被截断了，通常为 `0`。<br>   - **`rd` (Recursion Desired)**: 通常继承自请求包的 `rd` 标志位。<br>   - **`ra` (Recursion Available)**: 设为 `1` 表示你的服务器支持递归查询，否则为 `0`。<br>   - **`rcode` (Reply Code)**: 响应状态码。`0` 代表**No Error**，`3` 代表**NXDOMAIN** (域名不存在) 等。<br><br>3. **Counts (计数器)**: 这四个字段的值 **由程序自动计算**，无需用户手动填写。<br>   - **Questions (`qdcount`)**: 等于 `Questions` 字段里的记录数 (通常为1)。<br>   - **Answer RRs (`ancount`)**: 等于 `Answers` 字段里的记录数。<br>   - **Authority RRs (`nscount`)**: 等于 `Authority` 字段里的记录数。<br>   - **Additional RRs (`arcount`)**: 等于 `Additional` 字段里的记录数。 |
+| **2.3.2** | **填充查询部分 (Question Section)。** (告诉客户端：“我正在回答你关于‘这个域名’的‘这种类型’的查询”。) | **必须**完整地从触发它的请求包中复制整个 Question 部分 (`DNS.qd`)。这部分包含了客户端原始查询的 **Name (域名)**、**Type (类型)** 和 **Class (类别)**，是响应必须严格遵守的上下文。 |
+| **2.3.3** | **填充应答部分 (Answer Section)。** (这是响应的核心，包含了用户请求的具体数据，比如IP地址。) | 遍历规则中 `response_action.dns_answers` 定义的每一条资源记录 (RR)，并构造成Scapy的 `DNSRR` 对象。一条标准的 Answer RR 包含：<br><br>- **Name**: 记录所属的域名，通常继承自 Question 的域名。<br>- **Type**: 记录的类型 (如 A, AAAA, CNAME)。<br>- **Class**: 类别，通常是 `IN` (Internet)。<br>- **TTL**: 客户端可以缓存这条记录多久（秒）。<br>- **Data length**: RDATA 的长度，由Scapy自动计算。<br>- **RDATA**: 真正的资源数据，例如：A记录的IPv4地址 (`47.237.105.36`)，或CNAME记录的别名域名。 |
+| **2.3.4** | **填充权威部分 (Authority Section)。** (用于告知客户端，哪个域名服务器对该域具有最终解释权。) | 结构与 Answer Section 完全相同。通常用于存放 NS (Name Server) 类型的记录。在本次响应不直接提供答案，而是想将客户端引导至正确的权威服务器时，此部分会非常有用。如果规则中未定义，则此部分为空。|
+| **2.3.5** | **填充附加部分 (Additional Section)。** (提供一些额外信息，以帮助客户端更好地理解响应，或减少后续查询。) | 结构与 Answer Section 类似，但可以包含一些特殊的记录类型：<br><br>- **标准 RR**: 例如，如果在 Authority 部分提供了NS服务器的域名，此部分可以提供那些NS服务器的IP地址（A或AAAA记录），避免客户端需要再次查询。<br>- **OPT Record (`<Root>`)**: 这是 **EDNS0** 的实现，用于扩展DNS协议功能。它不是一个真正的记录，而是一种“伪记录”。它可以用来：<br>  - `UDP payload size`: 告知客户端你能接收多大的UDP包。<br>  - `COOKIE`: 用于验证客户端和服务器，防止IP欺骗等攻击。<br>  - `DO bit`: 表明你是否处理 DNSSEC 安全记录。 |
+| **2.3.6** | **填充 L4 (UDP) 字段。** | 1. **源端口 (`sport`)**: **`① 由触发条件的数据包目的端口决定`** (通常是53，响应从53端口发出)。 2. **目的端口 (`dport`)**: **`② 由触发条件的数据包源端口决定`** (发回给客户端发起请求的那个随机端口)。 |
+| **2.3.7** | **填充 L3 (IP) 字段。** | 1. **源IP (`src`)**: **`② 由触发条件的数据包目的IP决定`** (即本机监听的IP)。 2. **目的IP (`dst`)**: **`① 由触发条件的数据包源IP决定`** (发回给客户端的IP)。 |
+| **2.3.8** | **填充 L2 (Ethernet) 字段。** | 1. **源MAC (`src`)**: **`① 自动获取环境应有MAC`** (本机网卡的MAC地址)。 2. **目的MAC (`dst`)**: **`② 由触发条件的数据包源MAC决定`** (发回给客户端的MAC地址)。 |
+| **2.3.9** | **发送响应数据包。** | 使用 Scapy 的 `sendp()` 函数 (工作在L2/链路层) 将完整构造好的响应数据包从正确的网络接口发送出去。 |
 
 #### 2.4. 日志与存储 (`log_manager.py`)
 
@@ -102,147 +104,238 @@
 ```json
 {
   "rule_id": "string",
-  "name": "string", // 规则名称，用于前端列表展示
-  "is_enabled": "boolean", // 规则是否启用 (true/false)
-  "priority": "integer", // 规则匹配优先级 (数值越小，优先级越高，匹配成功即停止)
-  
-  "trigger_condition": { // 触发条件配置 (Query Packet 筛选)
-    
-    // ---------------- L2 链路层 (Ethernet) - 选填 ----------------
+  "name": "string",
+  "is_enabled": "boolean",
+  "priority": "integer",
+
+  "trigger_condition": {
     "l2": {
-      "src_mac": "string | null", // 源MAC地址 (e.g., "00:11:22:AA:BB:CC")
-      "dst_mac": "string | null"  // 目的MAC地址 (通常是本机的MAC或广播/组播MAC)
+      "src_mac": "string | null",
+      "dst_mac": "string | null"
     },
-    
-    // ---------------- L3 网络层 (IP/IPv6) - 选填 ----------------
+  
     "l3": {
-      "ip_version": "integer | null", // IP版本 (4 或 6)
-      "src_ip": "string | null", // 源IP地址 (e.g., "192.168.1.1")
-      "dst_ip": "string | null", // 目的IP地址 (通常是本机IP)
-      "ttl": "integer | null", // Time To Live (TTL)
-      "protocol": "integer | null" // 协议号 (UDP是17, TCP是6)
+      "ip_version": "integer | null",
+      "src_ip": "string | null",
+      "dst_ip": "string | null",
+      "ttl": "integer | null",
+      "protocol": "integer | null"
     },
-    
-    // ---------------- L4 传输层 (UDP) - 选填 ----------------
+  
     "l4": {
-      "src_port": "integer | null", // 源端口 (客户端随机端口)
-      "dst_port": "integer | null"  // 目的端口 (DNS是53)
+      "src_port": "integer | null",
+      "dst_port": "integer | null"
     },
-    
-    // ---------------- L7 应用层 (DNS) - 详细配置 ----------------
+  
     "dns": {
-      // 必填项 (核心匹配条件)
-      "qname": "string", // 必填: 请求域名 (e.g., "baidu.com")
-      "qtype": "integer", // 必填: 请求类型 (e.g., 1 for A, 28 for AAAA)
-      
-      // DNS 头部字段 (选填)
-      "transaction_id": "integer | null", // 交易ID (Transaction ID)
+      "qname": "string",
+      "qtype": "integer",
+    
+      "transaction_id": "integer | null",
       "flags": {
-        "opcode": "integer | null", // 操作码 (Opcode: 0-标准查询)
-        "qr": "integer | null",     // 问答标志 (Query/Response: 0-Query, 1-Response) (Query时应为0)
-        "aa": "integer | null",     // 权威标志 (Authoritative Answer)
-        "tc": "integer | null",     // 截断标志 (Truncated)
-        "rd": "integer | null",     // 递归请求 (Recursion Desired)
-        "ra": "integer | null",     // 递归可用 (Recursion Available)
-        "ad": "integer | null",     // 验证数据 (Authentic Data)
-        "cd": "integer | null",     // 检查禁用 (Checking Disabled)
-        "rcode": "integer | null"   // 响应码 (Reply Code)
+        "opcode": "integer | null",
+        "qr": "integer | null",
+        "aa": "integer | null",
+        "tc": "integer | null",
+        "rd": "integer | null",
+        "ra": "integer | null",
+        "ad": "integer | null",
+        "cd": "integer | null",
+        "rcode": "integer | null"
       },
-      
-      // DNS 计数字段 (选填)
-      "qd_count": "integer | null", // Questions 数量
-      "an_count": "integer | null", // Answers 数量 (Query时通常为0)
-      "ns_count": "integer | null", // Authority RRs 数量
-      "ar_count": "integer | null"  // Additional RRs 数量
+    
+      "qd_count": "integer | null",
+      "an_count": "integer | null",
+      "ns_count": "integer | null",
+      "ar_count": "integer | null"
     }
   },
-  
-  "response_action": { // 响应行为配置 (Response Packet 生成)
-    
-    // ---------------- L2 链路层 (Ethernet) - 响应生成配置 ----------------
+
+  "response_action": {
     "l2": {
       "src_mac": {
-        "mode": "string", // 选项: "auto" (自动获取本机MAC), "inherit" (继承Query包的Dst MAC), "custom"
-        "value": "string | null", // 仅当mode为custom时有效 (e.g., "FF:FF:FF:00:00:01")
-        "description": "源MAC地址：响应包的发送方MAC。选择 'auto' 确保响应能从本机正确发出。"
+        "mode": "string",
+        "value": "string | null",
+        "default": "auto",
+        "description": "源MAC地址：响应包的发送方MAC。'auto' (自动获取本机MAC), 'inherit' (继承Query包的Dst MAC), 'custom' (自定义)。"
       },
       "dst_mac": {
-        "mode": "string", // 选项: "inherit" (继承Query包的Src MAC), "custom"
+        "mode": "string",
         "value": "string | null",
-        "description": "目的MAC地址：响应包的接收方MAC。选择 'inherit' 确保响应能回到正确的客户端。"
+        "default": "inherit",
+        "description": "目的MAC地址：响应包的接收方MAC。'inherit' (继承Query包的Src MAC), 'custom'。推荐 'inherit'。"
       }
     },
-    
-    // ---------------- L3 网络层 (IP) - 响应生成配置 ----------------
+  
     "l3": {
       "src_ip": {
-        "mode": "string", // 选项: "auto" (自动获取本机IP), "inherit" (继承Query包的Dst IP), "custom"
+        "mode": "string",
         "value": "string | null",
-        "description": "源IP地址：响应包的发送方IP。**推荐 'inherit'** (即本机监听的IP) 或 'auto'。"
+        "default": "inherit",
+        "description": "源IP地址：响应包的发送方IP。'auto' (自动获取本机IP), 'inherit' (继承Query包的Dst IP), 'custom'。推荐 'inherit'。"
       },
       "dst_ip": {
-        "mode": "string", // 选项: "inherit" (继承Query包的Src IP), "custom"
+        "mode": "string",
         "value": "string | null",
-        "description": "目的IP地址：响应包的接收方IP。**必须选择 'inherit'**，将响应发回给客户端。"
+        "default": "inherit",
+        "description": "目的IP地址：响应包的接收方IP。'inherit' (继承Query包的Src IP), 'custom'。必须 'inherit'。"
       }
     },
-    
-    // ---------------- L4 传输层 (UDP) - 响应生成配置 ----------------
+  
     "l4": {
       "src_port": {
-        "mode": "string", // 选项: "inherit" (继承Query包的Dst Port), "custom"
+        "mode": "string",
         "value": "integer | null",
-        "description": "源端口：响应包的发送方端口。**推荐 'inherit'** (通常是53)。"
+        "default": "inherit",
+        "description": "源端口：响应包的发送方端口。'inherit' (继承Query包的Dst Port), 'custom'。推荐 'inherit' (通常是53)。"
       },
       "dst_port": {
-        "mode": "string", // 选项: "inherit" (继承Query包的Src Port), "custom"
+        "mode": "string",
         "value": "integer | null",
-        "description": "目的端口：响应包的接收方端口。**必须选择 'inherit'** (发回给客户端的随机端口)。"
+        "default": "inherit",
+        "description": "目的端口：响应包的接收方端口。'inherit' (继承Query包的Src Port), 'custom'。必须 'inherit'。"
       }
     },
-    
-    // ---------------- L7 应用层 (DNS) - 核心响应内容 ----------------
+  
     "dns_header": {
-      // 必须继承的字段
       "transaction_id": {
-        "mode": "string", // 选项: "inherit"
-        "description": "交易ID：**必须继承** Query包的ID，用于客户端匹配请求与响应。"
+        "mode": "string",
+        "default": "inherit",
+        "description": "交易ID：必须继承Query包的ID，用于客户端匹配请求与响应。"
       },
       "questions": {
-        "mode": "string", // 选项: "inherit"
-        "description": "Questions部分：**必须继承** Query包的Questions部分，保持响应的完整性。"
+        "mode": "string",
+        "default": "inherit",
+        "description": "Questions部分：必须继承Query包的Questions部分，以告知客户端这是对哪个问题的回答。"
       },
-      
-      // 响应标志位配置 (需要手动设置的)
+    
       "flags": { 
-        "qr": "integer", // 问答标志: 必须是 1 (Response)
-        "opcode": "integer", // 操作码: 必须是 0 (Standard Query)
-        "aa": "integer", // 权威标志: 0 或 1 (是否是权威服务器)
-        "tc": "integer", // 截断标志: 0 或 1 
-        "rd": "integer", // 递归请求: 0 或 1 (通常继承Query的RD)
-        "ra": "integer", // 递归可用: 0 或 1 
-        "ad": "integer", // 验证数据: 0 或 1
-        "cd": "integer", // 检查禁用: 0 或 1
-        "rcode": "integer" // 响应码: 0 (No Error) 或 其它错误码 (如 3-NXDOMAIN)
+        "qr": { "value": "integer", "default": 1, "description": "问答标志: 必须是 1 (Response)。" },
+        "opcode": { "value": "integer", "default": 0, "description": "操作码: 必须是 0 (Standard Query)。" },
+        "aa": { "value": "integer", "default": 1, "description": "权威标志: 1 (是权威服务器), 0 (非权威)。" },
+        "tc": { "value": "integer", "default": 0, "description": "截断标志: 通常为 0。" },
+        "rd": { "mode": "string", "default": "inherit", "description": "递归请求: 'inherit' (继承Query包的rd位), 'custom' (自定义为0或1)。" },
+        "ra": { "value": "integer", "default": 1, "description": "递归可用: 1 (服务器可用递归), 0 (不可用)。" },
+        "ad": { "value": "integer", "default": 0, "description": "验证数据(DNSSEC): 通常为 0。" },
+        "cd": { "value": "integer", "default": 0, "description": "检查禁用(DNSSEC): 通常为 0。" },
+        "rcode": { "value": "integer", "default": 0, "description": "响应码: 0 (No Error), 3 (NXDOMAIN), etc." }
       }
     },
-    
-    "dns_answers": [ // 响应记录列表 (Answer Section)
+  
+    "dns_answers": [
       {
-        "type": "integer", // 记录类型 (e.g., 1-A, 5-CNAME)
-        "ttl": "integer", // 缓存时间 (Time To Live, 秒)
-        "rdata": "string", // 资源数据 (例如：A记录的IP地址 "1.2.3.4")
         "name": {
-           "mode": "string", // 选项: "inherit" (继承Query的QNAME), "custom"
+           "mode": "string",
            "value": "string | null",
-           "description": "记录所属域名：**推荐 'inherit'** (即 Query 的请求域名)"
+           "default": "inherit",
+           "description": "记录所属域名: 'inherit' (继承Query的QNAME), 'custom'。推荐 'inherit'。"
+        },
+        "type": "integer",
+        "ttl": "integer",
+        "rdata": "string",
+        "default": {
+          "ttl": 3600
         }
       }
     ],
-    
-    "dns_authority": "array", // 权威名称服务器 (NS) 记录列表 (结构同上 dns_answers)
-    "dns_additional": "array" // 附加信息 (Additional) 记录列表 (结构同上 dns_answers)
+  
+    "dns_authority": [],
+    "dns_additional": []
   }
 }
-
 ```
+
+## 补充信息
+#### 标准请求数据包结构
+Domain Name System (query)
+    Transaction ID: 0x3469
+    Flags: 0x0120 Standard query
+        0... .... .... .... = Response: Message is a query
+        .000 0... .... .... = Opcode: Standard query (0)
+        .... ..0. .... .... = Truncated: Message is not truncated
+        .... ...1 .... .... = Recursion desired: Do query recursively
+        .... .... .0.. .... = Z: reserved (0)
+        .... .... ..1. .... = AD bit: Set
+        .... .... ...0 .... = Non-authenticated data: Unacceptable
+    Questions: 1
+    Answer RRs: 0
+    Authority RRs: 0
+    Additional RRs: 1
+    Queries
+        victim1.ns4.48232025.xyz: type A, class IN
+            Name: victim1.ns4.48232025.xyz
+            [Name Length: 24]
+            [Label Count: 4]
+            Type: A (1) (Host Address)
+            Class: IN (0x0001)
+    Additional records
+        <Root>: type OPT
+            Name: <Root>
+            Type: OPT (41) 
+            UDP payload size: 1232
+            Higher bits in extended RCODE: 0x00
+            EDNS0 version: 0
+            Z: 0x0000
+                0... .... .... .... = DO bit: Cannot handle DNSSEC security RRs
+                .000 0000 0000 0000 = Reserved: 0x0000
+            Data length: 12
+            Option: COOKIE
+                Option Code: COOKIE (10)
+                Option Length: 8
+                Option Data: 34fc480c4135f228
+                Client Cookie: 34fc480c4135f228
+                Server Cookie: <MISSING>
+    [Response In: 24]
+
+#### 标准响应数据包结构
+Domain Name System (response)
+    Transaction ID: 0x3469
+    Flags: 0x8180 Standard query response, No error
+        1... .... .... .... = Response: Message is a response
+        .000 0... .... .... = Opcode: Standard query (0)
+        .... .0.. .... .... = Authoritative: Server is not an authority for domain
+        .... ..0. .... .... = Truncated: Message is not truncated
+        .... ...1 .... .... = Recursion desired: Do query recursively
+        .... .... 1... .... = Recursion available: Server can do recursive queries
+        .... .... .0.. .... = Z: reserved (0)
+        .... .... ..0. .... = Answer authenticated: Answer/authority portion was not authenticated by the server
+        .... .... ...0 .... = Non-authenticated data: Unacceptable
+        .... .... .... 0000 = Reply code: No error (0)
+    Questions: 1
+    Answer RRs: 1
+    Authority RRs: 0
+    Additional RRs: 1
+    Queries
+        victim1.ns4.48232025.xyz: type A, class IN
+            Name: victim1.ns4.48232025.xyz
+            [Name Length: 24]
+            [Label Count: 4]
+            Type: A (1) (Host Address)
+            Class: IN (0x0001)
+    Answers
+        victim1.ns4.48232025.xyz: type A, class IN, addr 47.237.105.36
+            Name: victim1.ns4.48232025.xyz
+            Type: A (1) (Host Address)
+            Class: IN (0x0001)
+            Time to live: 3600 (1 hour)
+            Data length: 4
+            Address: 47.237.105.36
+    Additional records
+        <Root>: type OPT
+            Name: <Root>
+            Type: OPT (41) 
+            UDP payload size: 1232
+            Higher bits in extended RCODE: 0x00
+            EDNS0 version: 0
+            Z: 0x0000
+                0... .... .... .... = DO bit: Cannot handle DNSSEC security RRs
+                .000 0000 0000 0000 = Reserved: 0x0000
+            Data length: 28
+            Option: COOKIE
+                Option Code: COOKIE (10)
+                Option Length: 24
+                Option Data: 34fc480c4135f2280100000068f60d971a5aad220a4b6944
+                Client Cookie: 34fc480c4135f228
+                Server Cookie: 0100000068f60d971a5aad220a4b6944
+    [Request In: 5]
+    [Time: 0.045155000 seconds]
