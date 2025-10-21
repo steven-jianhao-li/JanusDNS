@@ -14,7 +14,10 @@
   <a href="https://github.com/secdev/scapy"><img src="https://img.shields.io/badge/Scapy-2.5%2B-orange.svg" alt="Scapy"></a>
   <a href="https://flask.palletsprojects.com/"><img src="https://img.shields.io/badge/Flask-2.3%2B-green.svg" alt="Flask"></a>
   <a href="https://tailwindcss.com/"><img src="https://img.shields.io/badge/Tailwind_CSS-Styling-blueviolet.svg" alt="Tailwind CSS"></a>
+  <a href="https://www.gnu.org/licenses/agpl-3.0"><img src="https://img.shields.io/badge/License-AGPL_v3-blue.svg" alt="License: AGPL v3"></a>
 </p>
+
+> ⚠️ **License**: This project is licensed under the [MIT License](LICENSE). You are free to use, modify, and distribute it.
 
 ---
 
@@ -158,4 +161,5 @@ The core of JanusDNS is its rule engine, which uses a flexible JSON structure. T
 
 
 </details>
+
 
