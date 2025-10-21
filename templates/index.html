@@ -222,9 +222,38 @@
 
             <!-- Logs Panel -->
             <div id="logs-viewer" class="hidden flex-grow flex flex-col">
-                 <h2 class="text-xl font-bold mb-4">Logs</h2>
-                 <div id="log-tasks-list" class="bg-gray-800 rounded p-4 h-full overflow-y-auto">
-                    <!-- Log tasks will be dynamically inserted here -->
+                <h2 class="text-xl font-bold mb-4">Log Sessions</h2>
+                <div class="bg-gray-800 rounded p-4 flex-grow overflow-y-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-gray-400 uppercase bg-gray-700">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 cursor-pointer" data-sort="id">
+                                    Task ID (Time) <span class="sort-indicator"></span>
+                                </th>
+                                <th scope="col" class="px-6 py-3">
+                                    Actions
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="log-tasks-table-body">
+                            <!-- Log session rows will be dynamically inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Log Details Modal -->
+                <div id="log-details-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
+                    <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-3/4 max-w-4xl max-h-[80vh] flex flex-col">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xl font-bold">Log Details for Task: <span id="modal-task-id"></span></h3>
+                            <button id="modal-close-btn" class="text-gray-400 hover:text-white">&times;</button>
+                        </div>
+                        <div id="modal-log-content" class="bg-gray-900 rounded p-4 overflow-y-auto flex-grow">
+                            <!-- Log content will be loaded here -->
+                        </div>
+                        <div class="mt-4 text-right">
+                            <a id="modal-download-pcap" href="#" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Download PCAP</a>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

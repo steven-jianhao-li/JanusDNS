@@ -8,7 +8,7 @@ log_file_path = None
 
 def start_new_log_session():
     """
-    Starts a new logging session by creating a unique task directory.
+    Starts a new logging session by creating a unique task directory and a single pcap file.
     """
     global current_task_id, log_file_path
     
@@ -19,6 +19,11 @@ def start_new_log_session():
     os.makedirs(task_dir, exist_ok=True)
     
     log_file_path = os.path.join(task_dir, "task.log")
+    pcap_file_path = os.path.join(task_dir, "capture.pcap")
+    
+    # Create an empty pcap file to append to later
+    wrpcap(pcap_file_path, [])
+    
     print(f"[*] New log session started. Task ID: {current_task_id}")
     return current_task_id
 
@@ -40,24 +45,18 @@ def log_triggered_rule(rule, query_packet):
 
 def save_pcap_files(rule, query_packet, response_packet):
     """
-    Saves the query and response packets to pcap files.
+    Appends the query and response packets to the single pcap file for the current session.
     """
     if not current_task_id:
         return
         
     task_dir = os.path.join(LOGS_DIR, current_task_id)
-    unique_id = datetime.datetime.now().strftime("%H%M%S%f")
-    rule_id = rule.get('rule_id', 'unknown')
+    pcap_filepath = os.path.join(task_dir, "capture.pcap")
     
-    query_filename = f"{unique_id}_rule_{rule_id}_query.pcap"
-    response_filename = f"{unique_id}_rule_{rule_id}_response.pcap"
+    # Append both packets to the existing pcap file
+    wrpcap(pcap_filepath, [query_packet, response_packet], append=True)
     
-    query_filepath = os.path.join(task_dir, query_filename)
-    response_filepath = os.path.join(task_dir, response_filename)
-    
-    wrpcap(query_filepath, query_packet)
-    wrpcap(response_filepath, response_packet)
-    print(f"[*] Saved query and response pcaps to {task_dir}")
+    print(f"[*] Appended query and response to {pcap_filepath}")
 
 def get_log_sessions():
     """

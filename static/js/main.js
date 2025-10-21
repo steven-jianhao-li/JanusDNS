@@ -2,6 +2,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Global State ---
     let currentRules = [];
     let selectedRuleId = null;
+    let logSessions = [];
+    let logSort = { column: 'id', order: 'desc' };
 
     // --- DOM Elements ---
     const startBtn = document.getElementById('start-btn');
@@ -17,9 +19,17 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const ruleEditor = document.getElementById('rule-editor');
     const logsViewer = document.getElementById('logs-viewer');
-    const logTasksList = document.getElementById('log-tasks-list');
     const tabEditor = document.getElementById('tab-editor');
     const tabLogs = document.getElementById('tab-logs');
+
+    // Log-specific DOM elements
+    const logTableBody = document.getElementById('log-tasks-table-body');
+    const logTableHeader = document.querySelector('#logs-viewer thead');
+    const modal = document.getElementById('log-details-modal');
+    const modalCloseBtn = document.getElementById('modal-close-btn');
+    const modalTaskId = document.getElementById('modal-task-id');
+    const modalLogContent = document.getElementById('modal-log-content');
+    const modalDownloadLink = document.getElementById('modal-download-pcap');
 
     // --- API Functions ---
     const api = {
@@ -100,20 +110,16 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('rule-name').value = rule.name;
         document.getElementById('rule-enabled').checked = rule.is_enabled;
 
-        // Helper to get nested property
         const getProp = (obj, path) => path.split('.').reduce((o, k) => (o && o[k] !== undefined) ? o[k] : undefined, obj);
 
-        // Populate all fields based on data-path
         ruleEditor.querySelectorAll('input[data-path], select[data-path]').forEach(el => {
             const path = el.dataset.path;
             const value = getProp(rule, path);
-
             if (value !== undefined && value !== null) {
                 el.value = value;
             }
         });
 
-        // Populate DNS answers
         const answers = getProp(rule, 'response_action.dns_answers') || [];
         answers.forEach(answer => addAnswerRow(answer));
     }
@@ -184,10 +190,9 @@ document.addEventListener('DOMContentLoaded', () => {
             rule_id: document.getElementById('rule-id').value || null,
             name: document.getElementById('rule-name').value,
             is_enabled: document.getElementById('rule-enabled').checked,
-            priority: 1 // Default priority
+            priority: 1
         };
 
-        // Helper to set nested property
         const setProp = (obj, path, value) => {
             const keys = path.split('.');
             let current = obj;
@@ -201,12 +206,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        // Gather all data from data-path elements
         ruleEditor.querySelectorAll('input[data-path], select[data-path]').forEach(el => {
             setProp(ruleData, el.dataset.path, el.value);
         });
 
-        // Gather DNS answers
         const answers = [];
         dnsAnswersContainer.querySelectorAll('.dns-answer-row').forEach(row => {
             const answer = {};
@@ -271,32 +274,6 @@ document.addEventListener('DOMContentLoaded', () => {
         tabLogs.classList.add('text-gray-400');
     });
 
-    async function fetchAndRenderLogs() {
-        try {
-            const sessions = await api.get('/api/logs');
-            logTasksList.innerHTML = '<ul>';
-            sessions.forEach(sessionId => {
-                logTasksList.innerHTML += `<li class="p-2 hover:bg-gray-700 cursor-pointer" data-task-id="${sessionId}">${sessionId}</li>`;
-            });
-            logTasksList.innerHTML += '</ul>';
-        } catch (error) {
-            console.error("Failed to fetch logs:", error);
-            logTasksList.innerHTML = '<p class="text-red-400">Failed to load log sessions.</p>';
-        }
-    }
-
-    logTasksList.addEventListener('click', async (e) => {
-        const taskId = e.target.dataset.taskId;
-        if (taskId) {
-            try {
-                const details = await api.get(`/api/logs/${taskId}`);
-                alert(`Logs for ${taskId}:\n\n${details.log_content}\n\nPcaps: ${details.pcap_files.join(', ')}`);
-            } catch (error) {
-                alert(`Failed to load details for task ${taskId}`);
-            }
-        }
-    });
-
     tabLogs.addEventListener('click', () => {
         logsViewer.classList.remove('hidden');
         ruleEditor.classList.add('hidden');
@@ -305,6 +282,104 @@ document.addEventListener('DOMContentLoaded', () => {
         tabEditor.classList.remove('border-blue-500', 'text-white');
         tabEditor.classList.add('text-gray-400');
         fetchAndRenderLogs();
+    });
+
+    // --- Log Viewer Logic ---
+    function formatTaskId(taskId) {
+        const year = taskId.substring(0, 4);
+        const month = taskId.substring(4, 6);
+        const day = taskId.substring(6, 8);
+        const hour = taskId.substring(8, 10);
+        const minute = taskId.substring(10, 12);
+        const second = taskId.substring(12, 14);
+        return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+    }
+
+    function renderLogs() {
+        logTableBody.innerHTML = '';
+
+        const sortedSessions = [...logSessions].sort((a, b) => {
+            if (logSort.order === 'asc') {
+                return a.localeCompare(b);
+            }
+            return b.localeCompare(a);
+        });
+
+        sortedSessions.forEach(sessionId => {
+            const row = document.createElement('tr');
+            row.className = 'bg-gray-800 border-b border-gray-700 hover:bg-gray-600';
+            row.innerHTML = `
+                <td class="px-6 py-4 font-medium whitespace-nowrap">${formatTaskId(sessionId)}</td>
+                <td class="px-6 py-4">
+                    <button class="view-log-details-btn font-medium text-blue-500 hover:underline" data-task-id="${sessionId}">Details</button>
+                    <button class="delete-log-btn font-medium text-red-500 hover:underline ml-4" data-task-id="${sessionId}">Delete</button>
+                </td>
+            `;
+            logTableBody.appendChild(row);
+        });
+    }
+
+    async function fetchAndRenderLogs() {
+        try {
+            logSessions = await api.get('/api/logs');
+            renderLogs();
+        } catch (error) {
+            console.error("Failed to fetch logs:", error);
+            logTableBody.innerHTML = '<tr><td colspan="2" class="text-center text-red-400 p-4">Failed to load log sessions.</td></tr>';
+        }
+    }
+
+    logTableHeader.addEventListener('click', (e) => {
+        const th = e.target.closest('th');
+        if (th && th.dataset.sort) {
+            const column = th.dataset.sort;
+            if (logSort.column === column) {
+                logSort.order = logSort.order === 'asc' ? 'desc' : 'asc';
+            } else {
+                logSort.column = column;
+                logSort.order = 'desc';
+            }
+            // Update indicator
+            document.querySelectorAll('.sort-indicator').forEach(el => el.textContent = '');
+            th.querySelector('.sort-indicator').textContent = logSort.order === 'asc' ? ' ▲' : ' ▼';
+            renderLogs();
+        }
+    });
+
+    logTableBody.addEventListener('click', async (e) => {
+        const taskId = e.target.dataset.taskId;
+        if (!taskId) return;
+
+        if (e.target.classList.contains('view-log-details-btn')) {
+            try {
+                const details = await api.get(`/api/logs/${taskId}`);
+                modalTaskId.textContent = formatTaskId(taskId);
+                modalLogContent.textContent = details.log_content || 'No log entries found.';
+                // Assuming only one pcap file named 'capture.pcap'
+                modalDownloadLink.href = `/api/logs/${taskId}/download/capture.pcap`;
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            } catch (error) {
+                alert(`Failed to load details for task ${taskId}`);
+            }
+        }
+
+        if (e.target.classList.contains('delete-log-btn')) {
+            if (confirm(`Are you sure you want to delete the log session ${formatTaskId(taskId)}?`)) {
+                try {
+                    await api.delete(`/api/logs/${taskId}`);
+                    alert('Log session deleted.');
+                    fetchAndRenderLogs();
+                } catch (error) {
+                    alert(`Failed to delete log session ${taskId}`);
+                }
+            }
+        }
+    });
+
+    modalCloseBtn.addEventListener('click', () => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
     });
 
     // --- Initial Load ---

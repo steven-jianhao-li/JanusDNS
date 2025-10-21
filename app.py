@@ -90,6 +90,11 @@ def delete_log_session(task_id):
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@app.route('/api/logs/<string:task_id>/download/<string:filename>')
+def download_pcap(task_id, filename):
+    log_dir = os.path.join(log_manager.LOGS_DIR, task_id)
+    return send_from_directory(log_dir, filename, as_attachment=True)
+
 # --- API Endpoints for Sniffer Control ---
 @app.route('/api/control/start', methods=['POST'])
 def start_sniffing_api():
