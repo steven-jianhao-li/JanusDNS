@@ -7,6 +7,8 @@ import rules_manager
 import log_manager
 import uuid
 import shutil
+import math
+import argparse
 
 app = Flask(__name__, static_folder='static')
 sniffer_thread = None
@@ -69,8 +71,31 @@ def import_rules():
 # --- API Endpoints for Log Management ---
 @app.route('/api/logs', methods=['GET'])
 def list_log_sessions():
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 10, type=int)
+    sort_by = request.args.get('sort', 'id', type=str)
+    order = request.args.get('order', 'desc', type=str)
+
     sessions = log_manager.get_log_sessions()
-    return jsonify(sessions)
+
+    # Sorting
+    reverse = (order == 'desc')
+    sessions.sort(reverse=reverse) # Simple sort as it's just a list of strings
+
+    # Pagination
+    total_sessions = len(sessions)
+    total_pages = math.ceil(total_sessions / limit)
+    start_index = (page - 1) * limit
+    end_index = start_index + limit
+    paginated_sessions = sessions[start_index:end_index]
+
+    return jsonify({
+        'sessions': paginated_sessions,
+        'page': page,
+        'pages': total_pages,
+        'limit': limit,
+        'total': total_sessions
+    })
 
 @app.route('/api/logs/<string:task_id>', methods=['GET'])
 def get_log_session_details(task_id):
@@ -119,5 +144,9 @@ def stop_sniffing_api():
     return jsonify({"status": "success", "message": "Packet sniffer stopped."})
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Run DNS Authority Responder Flask App")
+    parser.add_argument('--port', type=int, default=5000, help='Port to run the web server on')
+    args = parser.parse_args()
+
     # Use '0.0.0.0' to be accessible from the network
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=args.port, debug=True)

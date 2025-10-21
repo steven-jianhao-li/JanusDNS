@@ -255,7 +255,8 @@ def start_sniffing():
     # The sniff function will block, so it runs in a thread.
     # We use a loop with a timeout to make the sniffer responsive to the stop event.
     while not stop_sniffing.is_set():
-        sniff(iface=active_interfaces, filter="udp port 53", prn=process_packet, store=False, timeout=1)
+        sniff(iface=active_interfaces, filter="udp dst port 53", prn=process_packet, store=False, timeout=1)
+        
     print("[*] Packet sniffer stopped.")
 
 

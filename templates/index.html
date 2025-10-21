@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DNS Authority Responder</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Simple transition for collapsible sections */
@@ -39,20 +40,24 @@
     </style>
 </head>
 <body class="bg-gray-900 text-white font-sans">
+    <div id="language-switcher" class="absolute top-4 right-4 z-20">
+        <button id="lang-en" class="px-3 py-1 text-sm bg-gray-700 rounded-l-md hover:bg-gray-600" data-lang="en">EN</button>
+        <button id="lang-zh" class="px-3 py-1 text-sm bg-gray-800 rounded-r-md hover:bg-gray-600" data-lang="zh">ZH</button>
+    </div>
     <div class="flex h-screen">
         <!-- Left Panel -->
         <div class="w-1/3 bg-gray-800 p-4 border-r border-gray-700 flex flex-col">
-            <h1 class="text-2xl font-bold mb-4">DNS Responder</h1>
+            <h1 class="text-2xl font-bold mb-4" data-i18n-key="appTitle">DNS Responder</h1>
             
             <!-- Control Section -->
             <div class="mb-6">
-                <h2 class="text-lg font-semibold mb-2">Controls</h2>
+                <h2 class="text-lg font-semibold mb-2" data-i18n-key="controlsTitle">Controls</h2>
                 <div class="flex items-center space-x-4">
-                    <button id="start-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Start Listening</button>
-                    <button id="stop-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded" disabled>Stop Listening</button>
+                    <button id="start-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded" data-i18n-key="startBtn">Start Listening</button>
+                    <button id="stop-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded" disabled data-i18n-key="stopBtn">Stop Listening</button>
                     <div class="flex items-center space-x-2">
                         <span id="status-indicator" class="h-4 w-4 rounded-full bg-red-500"></span>
-                        <span id="status-text">Stopped</span>
+                        <span id="status-text" data-i18n-key="statusStopped">Stopped</span>
                     </div>
                 </div>
             </div>
@@ -60,10 +65,9 @@
             <!-- Rules List -->
             <div class="flex-grow flex flex-col min-h-0">
                 <div class="flex justify-between items-center mb-2">
-                    <h2 class="text-lg font-semibold">Rules</h2>
+                    <h2 class="text-lg font-semibold" data-i18n-key="rulesTitle">Rules</h2>
                     <div>
-                        <button id="new-rule-btn" class="bg-blue-600 hover:bg-blue-700 text-sm py-1 px-2 rounded">New Rule</button>
-                        <button id="save-rule-btn" class="bg-green-600 hover:bg-green-700 text-sm py-1 px-2 rounded">Save Rule</button>
+                        <button id="new-rule-btn" class="bg-blue-600 hover:bg-blue-700 text-sm py-1 px-2 rounded" data-i18n-key="newRuleBtn">New Rule</button>
                     </div>
                 </div>
                 <div id="rules-list-container" class="bg-gray-700 rounded p-2 flex-grow overflow-y-auto">
@@ -73,94 +77,95 @@
         </div>
 
         <!-- Right Panel -->
-        <div class="w-2/3 p-4 flex flex-col overflow-y-auto">
-            <!-- Tabs -->
-            <div class="flex border-b border-gray-700 mb-4">
-                <button id="tab-editor" class="py-2 px-4 text-white border-b-2 border-blue-500">Editor</button>
-                <button id="tab-logs" class="py-2 px-4 text-gray-400">Logs</button>
-            </div>
-
-            <!-- Rule Editor Panel -->
-            <div id="rule-editor" class="space-y-4">
-                <div class="grid grid-cols-2 gap-4">
+        <div class="w-2/3 flex flex-col">
+            <!-- Sticky Header -->
+            <div class="p-4 border-b border-gray-700 bg-gray-900" style="position: sticky; top: 0; z-index: 10;">
+                <!-- Tabs -->
+                <div class="flex">
+                    <button id="tab-editor" class="py-2 px-4 text-white border-b-2 border-blue-500" data-i18n-key="tabEditor">Editor</button>
+                    <button id="tab-logs" class="py-2 px-4 text-gray-400" data-i18n-key="tabLogs">Logs</button>
+                </div>
+                <!-- Rule Name Section -->
+                <div id="rule-name-section" class="mt-4 flex items-center justify-center">
                     <input type="hidden" id="rule-id">
-                    <div>
-                        <label for="rule-name" class="block mb-1 text-sm">Rule Name</label>
-                        <input type="text" id="rule-name" class="w-full bg-gray-700 rounded p-2 text-sm" placeholder="e.g., Block Google DNS">
-                    </div>
-                    <div class="flex items-end">
-                        <div class="flex items-center">
-                            <input type="checkbox" id="rule-enabled" class="mr-2 h-4 w-4">
-                            <label for="rule-enabled">Enabled</label>
-                        </div>
+                    <label for="rule-name" class="text-xl font-bold mr-4 flex-shrink-0" data-i18n-key="ruleNameLabel">Rule Name</label>
+                    <input type="text" id="rule-name" class="w-1/2 bg-gray-700 rounded p-2" data-i18n-placeholder-key="ruleNamePlaceholder">
+                    <div class="flex items-center ml-auto">
+                        <input type="checkbox" id="rule-enabled" class="mr-2 h-4 w-4">
+                        <label for="rule-enabled" data-i18n-key="ruleEnabledLabel">Enabled</label>
                     </div>
                 </div>
+            </div>
+
+            <!-- Scrollable Content -->
+            <div class="flex-grow p-4 overflow-y-auto">
+                <!-- Rule Editor Panel -->
+                <div id="rule-editor" class="space-y-4">
 
                 <!-- Trigger Condition -->
                 <div class="bg-gray-800 rounded p-4 space-y-2">
-                    <h3 class="text-lg font-semibold">Trigger Condition (Query Packet)</h3>
-                    <!-- L5 DNS (Required) -->
-                    <div class="border border-gray-600 rounded p-3">
-                        <h4 class="font-bold text-cyan-400">L5 - DNS</h4>
-                        <div class="grid grid-cols-2 gap-4 mt-2">
-                            <div>
-                                <label class="text-sm">Query Name (Required)</label>
-                                <input type="text" data-path="trigger_condition.dns.qname" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="baidu.com">
-                            </div>
-                            <div>
-                                <label class="text-sm">Query Type (Required)</label>
-                                <input type="number" data-path="trigger_condition.dns.qtype" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="1 (A)">
-                            </div>
-                            <div>
-                                <label class="text-sm">Transaction ID</label>
-                                <input type="number" data-path="trigger_condition.dns.transaction_id" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY">
-                            </div>
-                        </div>
-                        <details class="bg-gray-700 rounded mt-2">
-                            <summary class="p-2 cursor-pointer font-semibold text-sm">DNS Header & Counts</summary>
-                            <div class="p-3 border-t border-gray-600 grid grid-cols-4 gap-x-4 gap-y-2">
-                                <!-- Flags -->
-                                <h5 class="col-span-4 font-semibold text-xs uppercase text-gray-400">Flags</h5>
-                                <div><label class="text-xs">QR</label><input type="number" data-path="trigger_condition.dns.flags.qr" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
-                                <div><label class="text-xs">Opcode</label><input type="number" data-path="trigger_condition.dns.flags.opcode" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
-                                <div><label class="text-xs">TC</label><input type="number" data-path="trigger_condition.dns.flags.tc" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
-                                <div><label class="text-xs">RD</label><input type="number" data-path="trigger_condition.dns.flags.rd" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
-                                <div><label class="text-xs">Z</label><input type="number" data-path="trigger_condition.dns.flags.z" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
-                                <div><label class="text-xs">AD</label><input type="number" data-path="trigger_condition.dns.flags.ad" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
-                                <div><label class="text-xs">CD</label><input type="number" data-path="trigger_condition.dns.flags.cd" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
-                                <!-- Counts -->
-                                <h5 class="col-span-4 font-semibold text-xs uppercase text-gray-400 mt-2">Counts</h5>
-                                <div><label class="text-xs">QD Count</label><input type="number" data-path="trigger_condition.dns.qd_count" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
-                                <div><label class="text-xs">AN Count</label><input type="number" data-path="trigger_condition.dns.an_count" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
-                                <div><label class="text-xs">NS Count</label><input type="number" data-path="trigger_condition.dns.ns_count" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
-                                <div><label class="text-xs">AR Count</label><input type="number" data-path="trigger_condition.dns.ar_count" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                    <h3 class="text-lg font-semibold mb-3">Trigger Condition (Query Packet)</h3>
+                    <div id="trigger-details" class="space-y-2">
+                        <!-- L5 -->
+                        <details class="bg-gray-700 rounded" open>
+                            <summary class="p-2 cursor-pointer font-semibold text-cyan-400">Condition - Application Layer (L5 - DNS)</summary>
+                            <div class="p-3 border-t border-gray-600 space-y-3">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="text-sm">Query Name (Required)</label>
+                                        <input type="text" data-path="trigger_condition.dns.qname" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="baidu.com">
+                                    </div>
+                                    <div>
+                                        <label class="text-sm">Query Type (Required)</label>
+                                        <input type="number" data-path="trigger_condition.dns.qtype" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="1 (A)">
+                                    </div>
+                                    <div>
+                                        <label class="text-sm">Transaction ID</label>
+                                        <input type="number" data-path="trigger_condition.dns.transaction_id" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY">
+                                    </div>
+                                </div>
+                                <details class="bg-gray-800 rounded">
+                                    <summary class="p-2 cursor-pointer font-semibold text-sm">DNS Header & Counts</summary>
+                                    <div class="p-3 border-t border-gray-700 grid grid-cols-4 gap-x-4 gap-y-2">
+                                        <h5 class="col-span-4 font-semibold text-xs uppercase text-gray-400">Flags</h5>
+                                        <div><label class="text-xs">QR</label><input type="number" data-path="trigger_condition.dns.flags.qr" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                        <div><label class="text-xs">Opcode</label><input type="number" data-path="trigger_condition.dns.flags.opcode" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                        <div><label class="text-xs">TC</label><input type="number" data-path="trigger_condition.dns.flags.tc" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                        <div><label class="text-xs">RD</label><input type="number" data-path="trigger_condition.dns.flags.rd" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                        <div><label class="text-xs">Z</label><input type="number" data-path="trigger_condition.dns.flags.z" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                        <div><label class="text-xs">AD</label><input type="number" data-path="trigger_condition.dns.flags.ad" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                        <div><label class="text-xs">CD</label><input type="number" data-path="trigger_condition.dns.flags.cd" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                        <h5 class="col-span-4 font-semibold text-xs uppercase text-gray-400 mt-2">Counts</h5>
+                                        <div><label class="text-xs">QD Count</label><input type="number" data-path="trigger_condition.dns.qd_count" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                        <div><label class="text-xs">AN Count</label><input type="number" data-path="trigger_condition.dns.an_count" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                        <div><label class="text-xs">NS Count</label><input type="number" data-path="trigger_condition.dns.ns_count" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                        <div><label class="text-xs">AR Count</label><input type="number" data-path="trigger_condition.dns.ar_count" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                    </div>
+                                </details>
                             </div>
                         </details>
-                    </div>
-                    <!-- Collapsible Sections -->
-                    <div id="trigger-details" class="space-y-2">
-                        <!-- L2 -->
+                        <!-- L4 -->
                         <details class="bg-gray-700 rounded">
-                            <summary class="p-2 cursor-pointer font-semibold">Link Layer (L2)</summary>
+                            <summary class="p-2 cursor-pointer font-semibold">Condition - Transport Layer (L4)</summary>
                             <div class="p-3 border-t border-gray-600 grid grid-cols-2 gap-4">
-                                <div><label class="text-sm">Source MAC</label><input type="text" data-path="trigger_condition.l2.src_mac" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY"></div>
-                                <div><label class="text-sm">Destination MAC</label><input type="text" data-path="trigger_condition.l2.dst_mac" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY"></div>
+                                <div><label class="text-sm">Source Port</label><input type="number" data-path="trigger_condition.l4.src_port" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY"></div>
+                                <div><label class="text-sm">Destination Port</label><input type="number" data-path="trigger_condition.l4.dst_port" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY"></div>
                             </div>
                         </details>
                         <!-- L3 -->
                         <details class="bg-gray-700 rounded">
-                            <summary class="p-2 cursor-pointer font-semibold">Network Layer (L3)</summary>
+                            <summary class="p-2 cursor-pointer font-semibold">Condition - Network Layer (L3)</summary>
                             <div class="p-3 border-t border-gray-600 grid grid-cols-2 gap-4">
                                 <div><label class="text-sm">Source IP</label><input type="text" data-path="trigger_condition.l3.src_ip" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY"></div>
                                 <div><label class="text-sm">Destination IP</label><input type="text" data-path="trigger_condition.l3.dst_ip" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY"></div>
                             </div>
                         </details>
-                        <!-- L4 -->
+                        <!-- L2 -->
                         <details class="bg-gray-700 rounded">
-                            <summary class="p-2 cursor-pointer font-semibold">Transport Layer (L4)</summary>
+                            <summary class="p-2 cursor-pointer font-semibold">Condition - Link Layer (L2)</summary>
                             <div class="p-3 border-t border-gray-600 grid grid-cols-2 gap-4">
-                                <div><label class="text-sm">Source Port</label><input type="number" data-path="trigger_condition.l4.src_port" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY"></div>
-                                <div><label class="text-sm">Destination Port</label><input type="number" data-path="trigger_condition.l4.dst_port" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY"></div>
+                                <div><label class="text-sm">Source MAC</label><input type="text" data-path="trigger_condition.l2.src_mac" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY"></div>
+                                <div><label class="text-sm">Destination MAC</label><input type="text" data-path="trigger_condition.l2.dst_mac" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY"></div>
                             </div>
                         </details>
                     </div>
@@ -168,107 +173,80 @@
 
                 <!-- Response Action -->
                 <div class="bg-gray-800 rounded p-4 space-y-2">
-                    <h3 class="text-lg font-semibold">Response Action</h3>
-                    <!-- L5 DNS Records -->
-                    <div class="border border-gray-600 rounded p-3 space-y-3">
-                        <div>
-                            <h4 class="font-bold text-cyan-400">Answers Section</h4>
-                            <div id="dns-answers-container" class="space-y-2 mt-2"></div>
-                            <button id="add-answer-btn" class="mt-2 bg-blue-600 hover:bg-blue-700 text-sm py-1 px-2 rounded">+ Add Answer</button>
-                        </div>
-                        <div class="border-t border-gray-700 pt-3">
-                            <h4 class="font-bold text-cyan-400">Authority Section</h4>
-                            <div id="dns-authority-container" class="space-y-2 mt-2"></div>
-                            <button id="add-authority-btn" class="mt-2 bg-blue-600 hover:bg-blue-700 text-sm py-1 px-2 rounded">+ Add Authority</button>
-                        </div>
-                        <div class="border-t border-gray-700 pt-3">
-                            <h4 class="font-bold text-cyan-400">Additional Section</h4>
-                            <div id="dns-additional-container" class="space-y-2 mt-2"></div>
-                            <button id="add-additional-btn" class="mt-2 bg-blue-600 hover:bg-blue-700 text-sm py-1 px-2 rounded">+ Add Additional</button>
-                        </div>
-                    </div>
-                    <!-- Collapsible Response Sections -->
+                    <h3 class="text-lg font-semibold mb-3">Response Action</h3>
                     <div id="response-details" class="space-y-2">
-                        <!-- DNS Header -->
-                        <details class="bg-gray-700 rounded">
-                            <summary class="p-2 cursor-pointer font-semibold">Response - DNS Header</summary>
-                            <div class="p-3 border-t border-gray-600 grid grid-cols-3 gap-4">
-                                <!-- Simple Value Flags -->
-                                <div><label class="text-sm flex items-center">QR <span class="tooltip ml-1">?<span class="tooltip-text">Response: 1 (Response). 必须是 1。</span></span></label><input type="number" data-path="response_action.dns_header.flags.qr.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="1"></div>
-                                <div><label class="text-sm flex items-center">Opcode <span class="tooltip ml-1">?<span class="tooltip-text">Opcode: 0 (Standard query).</span></span></label><input type="number" data-path="response_action.dns_header.flags.opcode.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0"></div>
-                                <div><label class="text-sm flex items-center">AA <span class="tooltip ml-1">?<span class="tooltip-text">Authoritative: 1 (是权威服务器), 0 (非权威)。</span></span></label><input type="number" data-path="response_action.dns_header.flags.aa.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0"></div>
-                                <div><label class="text-sm flex items-center">TC <span class="tooltip ml-1">?<span class="tooltip-text">Truncated: 1 (消息被截断), 0 (未截断)。</span></span></label><input type="number" data-path="response_action.dns_header.flags.tc.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0"></div>
-                                <div><label class="text-sm flex items-center">RA <span class="tooltip ml-1">?<span class="tooltip-text">Recursion available: 1 (服务器可用递归), 0 (不可用)。</span></span></label><input type="number" data-path="response_action.dns_header.flags.ra.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="1"></div>
-                                <div><label class="text-sm flex items-center">Z <span class="tooltip ml-1">?<span class="tooltip-text">Z: reserved (0). 必须是 0。</span></span></label><input type="number" data-path="response_action.dns_header.flags.z.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0"></div>
-                                <div><label class="text-sm flex items-center">RCode <span class="tooltip ml-1">?<span class="tooltip-text">Reply code: 0 (No error), 3 (NXDOMAIN), etc.</span></span></label><input type="number" data-path="response_action.dns_header.flags.rcode.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0"></div>
-                                
-                                <!-- Flags with Mode Selection -->
-                                <div class="col-span-3 grid grid-cols-2 gap-2 border-t border-gray-700 pt-3 mt-2">
-                                    <div>
-                                        <label class="text-sm flex items-center">RD <span class="tooltip ml-1">?<span class="tooltip-text">Recursion desired: 'inherit' (继承Query包的rd位), 'custom' (自定义为0或1)。</span></span></label>
-                                        <select data-path="response_action.dns_header.flags.rd.mode" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm">
-                                            <option value="inherit">inherit</option>
-                                            <option value="custom">custom</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="text-sm">&nbsp;</label>
-                                        <input type="number" data-path="response_action.dns_header.flags.rd.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0 or 1">
-                                    </div>
+                        <!-- L5 -->
+                        <details class="bg-gray-700 rounded" open>
+                            <summary class="p-2 cursor-pointer font-semibold text-cyan-400">Response - Application Layer (L5 - DNS)</summary>
+                            <div class="p-3 border-t border-gray-600 space-y-4">
+                                <!-- RR Sections -->
+                                <div>
+                                    <h4 class="font-semibold text-sm mb-2">Answers Section</h4>
+                                    <div id="dns-answers-container" class="space-y-2"></div>
+                                    <button id="add-answer-btn" class="mt-2 bg-blue-600 hover:bg-blue-700 text-xs py-1 px-2 rounded">+ Add Answer RR</button>
                                 </div>
-                                <div class="col-span-3 grid grid-cols-2 gap-2">
-                                    <div>
-                                        <label class="text-sm flex items-center">AD <span class="tooltip ml-1">?<span class="tooltip-text">Answer authenticated: 'inherit', 'custom'。</span></span></label>
-                                        <select data-path="response_action.dns_header.flags.ad.mode" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm">
-                                            <option value="inherit">inherit</option>
-                                            <option value="custom">custom</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="text-sm">&nbsp;</label>
-                                        <input type="number" data-path="response_action.dns_header.flags.ad.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0 or 1">
-                                    </div>
+                                <div class="border-t border-gray-600 pt-3">
+                                    <h4 class="font-semibold text-sm mb-2">Authority Section</h4>
+                                    <div id="dns-authority-container" class="space-y-2"></div>
+                                    <button id="add-authority-btn" class="mt-2 bg-blue-600 hover:bg-blue-700 text-xs py-1 px-2 rounded">+ Add Authority RR</button>
                                 </div>
-                                <div class="col-span-3 grid grid-cols-2 gap-2">
-                                    <div>
-                                        <label class="text-sm flex items-center">CD <span class="tooltip ml-1">?<span class="tooltip-text">Non-authenticated data: 'inherit', 'custom'。</span></span></label>
-                                        <select data-path="response_action.dns_header.flags.cd.mode" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm">
-                                            <option value="inherit">inherit</option>
-                                            <option value="custom">custom</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="text-sm">&nbsp;</label>
-                                        <input type="number" data-path="response_action.dns_header.flags.cd.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0 or 1">
-                                    </div>
+                                <div class="border-t border-gray-600 pt-3">
+                                    <h4 class="font-semibold text-sm mb-2">Additional Section</h4>
+                                    <div id="dns-additional-container" class="space-y-2"></div>
+                                    <button id="add-additional-btn" class="mt-2 bg-blue-600 hover:bg-blue-700 text-xs py-1 px-2 rounded">+ Add Additional RR</button>
                                 </div>
+                                <!-- DNS Header -->
+                                <details class="bg-gray-800 rounded">
+                                    <summary class="p-2 cursor-pointer font-semibold text-sm">DNS Header Flags</summary>
+                                    <div class="p-3 border-t border-gray-700 grid grid-cols-3 gap-4">
+                                        <div><label class="text-sm flex items-center">QR <span class="tooltip ml-1">&#9432;<span class="tooltip-text">Response: 1 (Response). 必须是 1。</span></span></label><input type="number" data-path="response_action.dns_header.flags.qr.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="1"></div>
+                                        <div><label class="text-sm flex items-center">Opcode <span class="tooltip ml-1">&#9432;<span class="tooltip-text">Opcode: 0 (Standard query).</span></span></label><input type="number" data-path="response_action.dns_header.flags.opcode.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0"></div>
+                                        <div><label class="text-sm flex items-center">AA <span class="tooltip ml-1">&#9432;<span class="tooltip-text">Authoritative: 1 (是权威服务器), 0 (非权威)。</span></span></label><input type="number" data-path="response_action.dns_header.flags.aa.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0"></div>
+                                        <div><label class="text-sm flex items-center">TC <span class="tooltip ml-1">&#9432;<span class="tooltip-text">Truncated: 1 (消息被截断), 0 (未截断)。</span></span></label><input type="number" data-path="response_action.dns_header.flags.tc.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0"></div>
+                                        <div><label class="text-sm flex items-center">RA <span class="tooltip ml-1">&#9432;<span class="tooltip-text">Recursion available: 1 (服务器可用递归), 0 (不可用)。</span></span></label><input type="number" data-path="response_action.dns_header.flags.ra.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="1"></div>
+                                        <div><label class="text-sm flex items-center">Z <span class="tooltip ml-1">&#9432;<span class="tooltip-text">Z: reserved (0). 必须是 0。</span></span></label><input type="number" data-path="response_action.dns_header.flags.z.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0"></div>
+                                        <div><label class="text-sm flex items-center">RCode <span class="tooltip ml-1">&#9432;<span class="tooltip-text">Reply code: 0 (No error), 3 (NXDOMAIN), etc.</span></span></label><input type="number" data-path="response_action.dns_header.flags.rcode.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0"></div>
+                                        <div class="col-span-3 grid grid-cols-2 gap-2 border-t border-gray-700 pt-3 mt-2">
+                                            <div>
+                                                <label class="text-sm flex items-center">RD <span class="tooltip ml-1">&#9432;<span class="tooltip-text">Recursion desired: 'inherit' (继承Query包的rd位), 'custom' (自定义为0或1)。</span></span></label>
+                                                <select data-path="response_action.dns_header.flags.rd.mode" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm"><option value="inherit">inherit</option><option value="custom">custom</option></select>
+                                            </div>
+                                            <div><label class="text-sm">&nbsp;</label><input type="number" data-path="response_action.dns_header.flags.rd.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0 or 1"></div>
+                                        </div>
+                                        <div class="col-span-3 grid grid-cols-2 gap-2">
+                                            <div>
+                                                <label class="text-sm flex items-center">AD <span class="tooltip ml-1">&#9432;<span class="tooltip-text">Answer authenticated: 'inherit', 'custom'。</span></span></label>
+                                                <select data-path="response_action.dns_header.flags.ad.mode" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm"><option value="inherit">inherit</option><option value="custom">custom</option></select>
+                                            </div>
+                                            <div><label class="text-sm">&nbsp;</label><input type="number" data-path="response_action.dns_header.flags.ad.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0 or 1"></div>
+                                        </div>
+                                        <div class="col-span-3 grid grid-cols-2 gap-2">
+                                            <div>
+                                                <label class="text-sm flex items-center">CD <span class="tooltip ml-1">&#9432;<span class="tooltip-text">Non-authenticated data: 'inherit', 'custom'。</span></span></label>
+                                                <select data-path="response_action.dns_header.flags.cd.mode" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm"><option value="inherit">inherit</option><option value="custom">custom</option></select>
+                                            </div>
+                                            <div><label class="text-sm">&nbsp;</label><input type="number" data-path="response_action.dns_header.flags.cd.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0 or 1"></div>
+                                        </div>
+                                    </div>
+                                </details>
                             </div>
                         </details>
-                        <!-- L2 -->
+                        <!-- L4 -->
                         <details class="bg-gray-700 rounded">
-                            <summary class="p-2 cursor-pointer font-semibold">Response - Link Layer (L2)</summary>
+                            <summary class="p-2 cursor-pointer font-semibold">Response - Transport Layer (L4)</summary>
                             <div class="p-3 border-t border-gray-600 space-y-3">
-                                <!-- Src MAC -->
                                 <div>
-                                    <label class="text-sm flex items-center">Source MAC <span class="tooltip ml-1">?<span class="tooltip-text">源MAC地址：响应包的发送方MAC。'auto' (自动获取本机MAC), 'inherit' (继承Query包的Dst MAC), 'custom' (自定义)。</span></span></label>
+                                    <label class="text-sm flex items-center">Source Port <span class="tooltip ml-1">&#9432;<span class="tooltip-text">源端口：响应包的发送方端口。'inherit' (继承Query包的Dst Port), 'custom'。推荐 'inherit' (通常是53)。</span></span></label>
                                     <div class="flex space-x-2 mt-1">
-                                        <select data-path="response_action.l2.src_mac.mode" class="w-1/2 bg-gray-600 rounded p-1 text-sm">
-                                            <option value="auto">auto</option>
-                                            <option value="inherit">inherit</option>
-                                            <option value="custom">custom</option>
-                                        </select>
-                                        <input type="text" data-path="response_action.l2.src_mac.value" class="w-1/2 bg-gray-600 rounded p-1 text-sm" placeholder="Custom MAC">
+                                        <select data-path="response_action.l4.src_port.mode" class="w-1/2 bg-gray-600 rounded p-1 text-sm"><option value="inherit">inherit</option><option value="custom">custom</option></select>
+                                        <input type="number" data-path="response_action.l4.src_port.value" class="w-1/2 bg-gray-600 rounded p-1 text-sm" placeholder="Custom Port">
                                     </div>
                                 </div>
-                                <!-- Dst MAC -->
                                 <div>
-                                    <label class="text-sm flex items-center">Destination MAC <span class="tooltip ml-1">?<span class="tooltip-text">目的MAC地址：响应包的接收方MAC。'inherit' (继承Query包的Src MAC), 'custom'。推荐 'inherit'。</span></span></label>
+                                    <label class="text-sm flex items-center">Destination Port <span class="tooltip ml-1">&#9432;<span class="tooltip-text">目的端口：响应包的接收方端口。'inherit' (继承Query包的Src Port), 'custom'。必须 'inherit'。</span></span></label>
                                     <div class="flex space-x-2 mt-1">
-                                        <select data-path="response_action.l2.dst_mac.mode" class="w-1/2 bg-gray-600 rounded p-1 text-sm">
-                                            <option value="inherit">inherit</option>
-                                            <option value="custom">custom</option>
-                                        </select>
-                                        <input type="text" data-path="response_action.l2.dst_mac.value" class="w-1/2 bg-gray-600 rounded p-1 text-sm" placeholder="Custom MAC">
+                                        <select data-path="response_action.l4.dst_port.mode" class="w-1/2 bg-gray-600 rounded p-1 text-sm"><option value="inherit">inherit</option><option value="custom">custom</option></select>
+                                        <input type="number" data-path="response_action.l4.dst_port.value" class="w-1/2 bg-gray-600 rounded p-1 text-sm" placeholder="Custom Port">
                                     </div>
                                 </div>
                             </div>
@@ -277,75 +255,75 @@
                         <details class="bg-gray-700 rounded">
                             <summary class="p-2 cursor-pointer font-semibold">Response - Network Layer (L3)</summary>
                             <div class="p-3 border-t border-gray-600 space-y-3">
-                                <!-- Src IP -->
                                 <div>
-                                    <label class="text-sm flex items-center">Source IP <span class="tooltip ml-1">?<span class="tooltip-text">源IP地址：响应包的发送方IP。'auto' (自动获取本机IP), 'inherit' (继承Query包的Dst IP), 'custom'。推荐 'inherit'。</span></span></label>
+                                    <label class="text-sm flex items-center">Source IP <span class="tooltip ml-1">&#9432;<span class="tooltip-text">源IP地址：响应包的发送方IP。'auto' (自动获取本机IP), 'inherit' (继承Query包的Dst IP), 'custom'。推荐 'inherit'。</span></span></label>
                                     <div class="flex space-x-2 mt-1">
-                                        <select data-path="response_action.l3.src_ip.mode" class="w-1/2 bg-gray-600 rounded p-1 text-sm">
-                                            <option value="inherit">inherit</option>
-                                            <option value="auto">auto</option>
-                                            <option value="custom">custom</option>
-                                        </select>
+                                        <select data-path="response_action.l3.src_ip.mode" class="w-1/2 bg-gray-600 rounded p-1 text-sm"><option value="inherit">inherit</option><option value="auto">auto</option><option value="custom">custom</option></select>
                                         <input type="text" data-path="response_action.l3.src_ip.value" class="w-1/2 bg-gray-600 rounded p-1 text-sm" placeholder="Custom IP">
                                     </div>
                                 </div>
-                                <!-- Dst IP -->
                                 <div>
-                                    <label class="text-sm flex items-center">Destination IP <span class="tooltip ml-1">?<span class="tooltip-text">目的IP地址：响应包的接收方IP。'inherit' (继承Query包的Src IP), 'custom'。必须 'inherit'。</span></span></label>
+                                    <label class="text-sm flex items-center">Destination IP <span class="tooltip ml-1">&#9432;<span class="tooltip-text">目的IP地址：响应包的接收方IP。'inherit' (继承Query包的Src IP), 'custom'。必须 'inherit'。</span></span></label>
                                     <div class="flex space-x-2 mt-1">
-                                        <select data-path="response_action.l3.dst_ip.mode" class="w-1/2 bg-gray-600 rounded p-1 text-sm">
-                                            <option value="inherit">inherit</option>
-                                            <option value="custom">custom</option>
-                                        </select>
+                                        <select data-path="response_action.l3.dst_ip.mode" class="w-1/2 bg-gray-600 rounded p-1 text-sm"><option value="inherit">inherit</option><option value="custom">custom</option></select>
                                         <input type="text" data-path="response_action.l3.dst_ip.value" class="w-1/2 bg-gray-600 rounded p-1 text-sm" placeholder="Custom IP">
                                     </div>
                                 </div>
                             </div>
                         </details>
-                        <!-- L4 -->
+                        <!-- L2 -->
                         <details class="bg-gray-700 rounded">
-                            <summary class="p-2 cursor-pointer font-semibold">Response - Transport Layer (L4)</summary>
+                            <summary class="p-2 cursor-pointer font-semibold">Response - Link Layer (L2)</summary>
                             <div class="p-3 border-t border-gray-600 space-y-3">
-                                <!-- Src Port -->
                                 <div>
-                                    <label class="text-sm flex items-center">Source Port <span class="tooltip ml-1">?<span class="tooltip-text">源端口：响应包的发送方端口。'inherit' (继承Query包的Dst Port), 'custom'。推荐 'inherit' (通常是53)。</span></span></label>
+                                    <label class="text-sm flex items-center">Source MAC <span class="tooltip ml-1">&#9432;<span class="tooltip-text">源MAC地址：响应包的发送方MAC。'auto' (自动获取本机MAC), 'inherit' (继承Query包的Dst MAC), 'custom' (自定义)。</span></span></label>
                                     <div class="flex space-x-2 mt-1">
-                                        <select data-path="response_action.l4.src_port.mode" class="w-1/2 bg-gray-600 rounded p-1 text-sm">
-                                            <option value="inherit">inherit</option>
-                                            <option value="custom">custom</option>
-                                        </select>
-                                        <input type="number" data-path="response_action.l4.src_port.value" class="w-1/2 bg-gray-600 rounded p-1 text-sm" placeholder="Custom Port">
+                                        <select data-path="response_action.l2.src_mac.mode" class="w-1/2 bg-gray-600 rounded p-1 text-sm"><option value="auto">auto</option><option value="inherit">inherit</option><option value="custom">custom</option></select>
+                                        <input type="text" data-path="response_action.l2.src_mac.value" class="w-1/2 bg-gray-600 rounded p-1 text-sm" placeholder="Custom MAC">
                                     </div>
                                 </div>
-                                <!-- Dst Port -->
                                 <div>
-                                    <label class="text-sm flex items-center">Destination Port <span class="tooltip ml-1">?<span class="tooltip-text">目的端口：响应包的接收方端口。'inherit' (继承Query包的Src Port), 'custom'。必须 'inherit'。</span></span></label>
+                                    <label class="text-sm flex items-center">Destination MAC <span class="tooltip ml-1">&#9432;<span class="tooltip-text">目的MAC地址：响应包的接收方MAC。'inherit' (继承Query包的Src MAC), 'custom'。推荐 'inherit'。</span></span></label>
                                     <div class="flex space-x-2 mt-1">
-                                        <select data-path="response_action.l4.dst_port.mode" class="w-1/2 bg-gray-600 rounded p-1 text-sm">
-                                            <option value="inherit">inherit</option>
-                                            <option value="custom">custom</option>
-                                        </select>
-                                        <input type="number" data-path="response_action.l4.dst_port.value" class="w-1/2 bg-gray-600 rounded p-1 text-sm" placeholder="Custom Port">
+                                        <select data-path="response_action.l2.dst_mac.mode" class="w-1/2 bg-gray-600 rounded p-1 text-sm"><option value="inherit">inherit</option><option value="custom">custom</option></select>
+                                        <input type="text" data-path="response_action.l2.dst_mac.value" class="w-1/2 bg-gray-600 rounded p-1 text-sm" placeholder="Custom MAC">
                                     </div>
                                 </div>
                             </div>
                         </details>
                     </div>
                 </div>
-                <button id="delete-rule-btn" class="mt-4 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Delete Rule</button>
-            </div>
+                <div class="flex items-center space-x-4 mt-6">
+                    <button id="save-rule-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded" data-i18n-key="saveRuleBtn">Save Rule</button>
+                    <button id="delete-rule-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded" data-i18n-key="deleteRuleBtn">Delete Rule</button>
+                </div>
+                </div>
 
             <!-- Logs Panel -->
             <div id="logs-viewer" class="hidden flex-grow flex flex-col">
-                <h2 class="text-xl font-bold mb-4">Log Sessions</h2>
+                <h2 class="text-xl font-bold mb-4" data-i18n-key="logSessionsTitle">Log Sessions</h2>
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex items-center space-x-2">
+                        <label for="logs-per-page" class="text-sm" data-i18n-key="logsPerPageLabel">Show:</label>
+                        <select id="logs-per-page" class="bg-gray-700 rounded p-1 text-sm">
+                            <option value="10">10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <input type="number" id="log-page-jump" class="bg-gray-700 rounded p-1 text-sm w-20" data-i18n-placeholder-key="logPageJumpPlaceholder">
+                        <button id="log-page-jump-btn" class="bg-blue-600 hover:bg-blue-700 text-sm py-1 px-2 rounded" data-i18n-key="logPageJumpBtn">Go</button>
+                    </div>
+                </div>
                 <div class="bg-gray-800 rounded p-4 flex-grow overflow-y-auto">
                     <table class="w-full text-sm text-left">
                         <thead class="text-xs text-gray-400 uppercase bg-gray-700">
                             <tr>
-                                <th scope="col" class="px-6 py-3 cursor-pointer" data-sort="id">
+                                <th scope="col" class="px-6 py-3 cursor-pointer" data-sort="id" data-i18n-key="logColumnTaskID">
                                     Task ID (Time) <span class="sort-indicator"></span>
                                 </th>
-                                <th scope="col" class="px-6 py-3">
+                                <th scope="col" class="px-6 py-3" data-i18n-key="logColumnActions">
                                     Actions
                                 </th>
                             </tr>
@@ -355,18 +333,21 @@
                         </tbody>
                     </table>
                 </div>
+                <div id="log-pagination" class="flex justify-between items-center mt-4 text-sm">
+                    <!-- Pagination controls will be inserted here -->
+                </div>
                 <!-- Log Details Modal -->
                 <div id="log-details-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
                     <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-3/4 max-w-4xl max-h-[80vh] flex flex-col">
                         <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-xl font-bold">Log Details for Task: <span id="modal-task-id"></span></h3>
+                            <h3 class="text-xl font-bold" data-i18n-key="logDetailsTitle">Log Details for Task: <span id="modal-task-id"></span></h3>
                             <button id="modal-close-btn" class="text-gray-400 hover:text-white">&times;</button>
                         </div>
-                        <div id="modal-log-content" class="bg-gray-900 rounded p-4 overflow-y-auto flex-grow">
+                        <div id="modal-log-content" class="bg-gray-900 rounded p-4 overflow-y-auto flex-grow whitespace-pre-wrap">
                             <!-- Log content will be loaded here -->
                         </div>
                         <div class="mt-4 text-right">
-                            <a id="modal-download-pcap" href="#" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Download PCAP</a>
+                            <a id="modal-download-pcap" href="#" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" data-i18n-key="logDownloadPcapBtn">Download PCAP</a>
                         </div>
                     </div>
                 </div>

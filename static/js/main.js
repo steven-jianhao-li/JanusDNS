@@ -4,6 +4,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedRuleId = null;
     let logSessions = [];
     let logSort = { column: 'id', order: 'desc' };
+    let logsPerPage = 10;
+    let currentPage = 1;
+    let totalLogPages = 1;
+    let totalLogCount = 0;
+
+    // --- i18n State ---
+    let currentLang = 'en';
+    let translations = {};
 
     // --- DOM Elements ---
     const startBtn = document.getElementById('start-btn');
@@ -25,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const logsViewer = document.getElementById('logs-viewer');
     const tabEditor = document.getElementById('tab-editor');
     const tabLogs = document.getElementById('tab-logs');
+    const ruleNameSection = document.getElementById('rule-name-section');
 
     // Log-specific DOM elements
     const logTableBody = document.getElementById('log-tasks-table-body');
@@ -36,6 +45,65 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalDownloadLink = document.getElementById('modal-download-pcap');
     const toast = document.getElementById('toast');
     const toastMessage = document.getElementById('toast-message');
+    const logsPerPageSelect = document.getElementById('logs-per-page');
+    const logPageJumpInput = document.getElementById('log-page-jump');
+    const logPageJumpBtn = document.getElementById('log-page-jump-btn');
+    const logPagination = document.getElementById('log-pagination');
+    const langEnBtn = document.getElementById('lang-en');
+    const langZhBtn = document.getElementById('lang-zh');
+
+    // --- i18n Functions ---
+    async function setLanguage(lang) {
+        try {
+            const response = await fetch(`/static/lang/${lang}.json`);
+            translations = await response.json();
+            currentLang = lang;
+            localStorage.setItem('preferredLanguage', lang);
+            updateContent();
+            
+            // Update language switcher style
+            if (lang === 'en') {
+                langEnBtn.classList.add('bg-gray-600');
+                langEnBtn.classList.remove('bg-gray-800');
+                langZhBtn.classList.add('bg-gray-800');
+                langZhBtn.classList.remove('bg-gray-600');
+            } else {
+                langZhBtn.classList.add('bg-gray-600');
+                langZhBtn.classList.remove('bg-gray-800');
+                langEnBtn.classList.add('bg-gray-800');
+                langEnBtn.classList.remove('bg-gray-600');
+            }
+
+        } catch (error) {
+            console.error(`Could not load language file for ${lang}:`, error);
+        }
+    }
+
+    function updateContent() {
+        document.querySelectorAll('[data-i18n-key]').forEach(el => {
+            const key = el.dataset.i18nKey;
+            if (translations[key]) {
+                // Handle specific cases like status text which might need dynamic parts
+                if (key === 'statusRunning' && statusText.textContent === 'Running') {
+                    el.textContent = translations[key];
+                } else if (key === 'statusStopped' && statusText.textContent === 'Stopped') {
+                    el.textContent = translations[key];
+                } else if (!['statusRunning', 'statusStopped'].includes(key)) {
+                    el.textContent = translations[key];
+                }
+            }
+        });
+        document.querySelectorAll('[data-i18n-placeholder-key]').forEach(el => {
+            const key = el.dataset.i18nPlaceholderKey;
+            if (translations[key]) {
+                el.placeholder = translations[key];
+            }
+        });
+        // Re-render dynamic content that needs translation
+        renderRulesList();
+        fetchAndRenderLogs();
+    }
+
 
     // --- UI Functions ---
     function showToast(message, isError = false) {
@@ -100,12 +168,13 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const nameSpan = document.createElement('span');
             nameSpan.className = 'rule-name-display';
-            nameSpan.textContent = rule.name || 'Untitled Rule';
+            nameSpan.textContent = rule.name || (translations.untitledRule || 'Untitled Rule');
             
             const enabledCheckbox = document.createElement('input');
             enabledCheckbox.type = 'checkbox';
             enabledCheckbox.checked = rule.is_enabled;
-            enabledCheckbox.className = 'rule-enabled-toggle pointer-events-none';
+            enabledCheckbox.className = 'rule-enabled-toggle'; // Allow pointer events
+            enabledCheckbox.dataset.ruleId = rule.rule_id; // Add rule-id for direct access
 
             ruleEl.appendChild(nameSpan);
             ruleEl.appendChild(enabledCheckbox);
@@ -181,7 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function addRRRow(container, rr = {}) {
         const rrDiv = document.createElement('div');
-        rrDiv.className = 'rr-row grid grid-cols-12 gap-2 items-center mb-2';
+        rrDiv.className = 'rr-row grid grid-cols-12 gap-2 items-end mb-2'; // Use items-end to align labels nicely
         
         const nameMode = rr.name?.mode || 'inherit';
         const nameValue = rr.name?.value || '';
@@ -189,15 +258,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const isOpt = type === 41;
 
         rrDiv.innerHTML = `
-            <select data-key="name.mode" class="col-span-2 bg-gray-600 rounded p-1 text-sm">
-                <option value="inherit" ${nameMode === 'inherit' ? 'selected' : ''}>Inherit Name</option>
-                <option value="custom" ${nameMode === 'custom' ? 'selected' : ''}>Custom</option>
-            </select>
-            <input type="text" data-key="name.value" class="col-span-3 w-full bg-gray-600 rounded p-1 text-sm" placeholder="Custom Name" value="${nameValue}" ${nameMode !== 'custom' ? 'disabled' : ''}>
-            <input type="number" data-key="type" class="col-span-1 w-full bg-gray-600 rounded p-1 text-sm" placeholder="Type" value="${type}">
-            <input type="number" data-key="ttl" class="col-span-1 w-full bg-gray-600 rounded p-1 text-sm" placeholder="TTL" value="${rr.ttl || ''}" ${isOpt ? 'disabled' : ''}>
-            <input type="text" data-key="rdata" class="col-span-4 w-full bg-gray-600 rounded p-1 text-sm" placeholder="RDATA" value="${rr.rdata || ''}" ${isOpt ? 'disabled' : ''}>
-            <button class="remove-rr-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs">X</button>
+            <div class="col-span-2">
+                <label class="text-xs text-gray-400">Name Mode</label>
+                <select data-key="name.mode" class="w-full bg-gray-600 rounded p-1 text-sm mt-1">
+                    <option value="inherit" ${nameMode === 'inherit' ? 'selected' : ''}>Inherit</option>
+                    <option value="custom" ${nameMode === 'custom' ? 'selected' : ''}>Custom</option>
+                </select>
+            </div>
+            <div class="col-span-3">
+                <label class="text-xs text-gray-400">Name Value</label>
+                <input type="text" data-key="name.value" class="w-full bg-gray-600 rounded p-1 text-sm mt-1" placeholder="e.g., ns1.example.com" value="${nameValue}" ${nameMode !== 'custom' ? 'disabled' : ''}>
+            </div>
+            <div class="col-span-1">
+                <label class="text-xs text-gray-400">Type</label>
+                <input type="number" data-key="type" class="w-full bg-gray-600 rounded p-1 text-sm mt-1" placeholder="1" value="${type}">
+            </div>
+            <div class="col-span-1">
+                <label class="text-xs text-gray-400">TTL</label>
+                <input type="number" data-key="ttl" class="w-full bg-gray-600 rounded p-1 text-sm mt-1" placeholder="3600" value="${rr.ttl || ''}" ${isOpt ? 'disabled' : ''}>
+            </div>
+            <div class="col-span-4">
+                <label class="text-xs text-gray-400">RDATA</label>
+                <input type="text" data-key="rdata" class="w-full bg-gray-600 rounded p-1 text-sm mt-1" placeholder="e.g., 1.2.3.4" value="${rr.rdata || ''}" ${isOpt ? 'disabled' : ''}>
+            </div>
+            <button class="remove-rr-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs self-center">X</button>
         `;
         container.appendChild(rrDiv);
 
@@ -243,8 +327,36 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    rulesListContainer.addEventListener('click', (e) => {
+    rulesListContainer.addEventListener('click', async (e) => {
         const ruleItem = e.target.closest('.rule-item');
+        
+        // Handle clicks on the checkbox for enabling/disabling rules
+        if (e.target.classList.contains('rule-enabled-toggle')) {
+            const checkbox = e.target;
+            const ruleId = checkbox.dataset.ruleId;
+            const rule = currentRules.find(r => r.rule_id === ruleId);
+            if (rule) {
+                rule.is_enabled = checkbox.checked;
+                try {
+                    await api.put(`/api/rules/${ruleId}`, rule);
+                    showToast(`Rule '${rule.name}' ${rule.is_enabled ? 'enabled' : 'disabled'}.`);
+                    // If the sniffer is running, restart it to apply the change
+                    if (statusText.textContent === 'Running') {
+                        await api.post('/api/control/stop');
+                        await api.post('/api/control/start');
+                        showToast('Sniffer restarted to apply rule changes.');
+                    }
+                } catch (error) {
+                    console.error("Failed to update rule state:", error);
+                    showToast(`Error updating rule: ${error.message}`, true);
+                    // Revert checkbox on failure
+                    checkbox.checked = !checkbox.checked;
+                }
+            }
+            return; // Stop further processing to prevent selecting the rule
+        }
+
+        // Handle clicks on the rule item itself to select it
         if (ruleItem) {
             selectedRuleId = ruleItem.dataset.ruleId;
             fetchAndRenderRules();
@@ -258,6 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     saveRuleBtn.addEventListener('click', async () => {
+        const isSnifferRunning = statusText.textContent === 'Running';
         const ruleData = {
             rule_id: document.getElementById('rule-id').value || null,
             name: document.getElementById('rule-name').value,
@@ -367,7 +480,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectedRuleId = newRule.rule_id;
             }
             showToast('Rule saved!');
-            fetchAndRenderRules();
+            await fetchAndRenderRules(); // Use await to ensure rules are fresh
+
+            // If the sniffer was running, restart it to apply changes
+            if (isSnifferRunning) {
+                showToast('Restarting sniffer to apply changes...');
+                await api.post('/api/control/stop');
+                const result = await api.post('/api/control/start');
+                updateStatus(true);
+                showToast(result.message || 'Sniffer restarted successfully.');
+            }
+
         } catch (error) {
             console.error("Failed to save rule:", error);
             showToast(`Error saving rule: ${error.message}`, true);
@@ -418,6 +541,8 @@ document.addEventListener('DOMContentLoaded', () => {
     tabEditor.addEventListener('click', () => {
         ruleEditor.classList.remove('hidden');
         logsViewer.classList.add('hidden');
+        ruleNameSection.classList.remove('hidden');
+        ruleNameSection.classList.add('flex');
         tabEditor.classList.add('border-blue-500', 'text-white');
         tabEditor.classList.remove('text-gray-400');
         tabLogs.classList.remove('border-blue-500', 'text-white');
@@ -426,11 +551,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     tabLogs.addEventListener('click', () => {
         logsViewer.classList.remove('hidden');
+        logsViewer.classList.add('flex');
         ruleEditor.classList.add('hidden');
+        ruleNameSection.classList.add('hidden');
+        ruleNameSection.classList.remove('flex');
+        
         tabLogs.classList.add('border-blue-500', 'text-white');
         tabLogs.classList.remove('text-gray-400');
+        
         tabEditor.classList.remove('border-blue-500', 'text-white');
         tabEditor.classList.add('text-gray-400');
+        
         fetchAndRenderLogs();
     });
 
@@ -445,34 +576,76 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
     }
 
-    function renderLogs() {
+    function renderLogs(sessions) {
         logTableBody.innerHTML = '';
 
-        const sortedSessions = [...logSessions].sort((a, b) => {
-            if (logSort.order === 'asc') {
-                return a.localeCompare(b);
-            }
-            return b.localeCompare(a);
-        });
+        if (!sessions || sessions.length === 0) {
+            const noLogsMessage = translations.noLogsMessage || 'No log sessions found.';
+            logTableBody.innerHTML = `<tr><td colspan="2" class="text-center py-4">${noLogsMessage}</td></tr>`;
+            return;
+        }
 
-        sortedSessions.forEach(sessionId => {
+        sessions.forEach(sessionId => {
             const row = document.createElement('tr');
             row.className = 'bg-gray-800 border-b border-gray-700 hover:bg-gray-600';
             row.innerHTML = `
                 <td class="px-6 py-4 font-medium whitespace-nowrap">${formatTaskId(sessionId)}</td>
                 <td class="px-6 py-4">
-                    <button class="view-log-details-btn font-medium text-blue-500 hover:underline" data-task-id="${sessionId}">Details</button>
-                    <button class="delete-log-btn font-medium text-red-500 hover:underline ml-4" data-task-id="${sessionId}">Delete</button>
+                    <button class="view-log-details-btn bg-blue-600 hover:bg-blue-700 text-white text-xs py-1 px-2 rounded" data-task-id="${sessionId}">${translations.logDetailsBtn || 'Details'}</button>
+                    <button class="delete-log-btn bg-red-600 hover:bg-red-700 text-white text-xs py-1 px-2 rounded ml-2" data-task-id="${sessionId}">${translations.logDeleteBtn || 'Delete'}</button>
                 </td>
             `;
             logTableBody.appendChild(row);
         });
     }
 
+    function renderPagination() {
+        logPagination.innerHTML = '';
+        if (totalLogCount === 0) return;
+
+        const startItem = (currentPage - 1) * logsPerPage + 1;
+        const endItem = Math.min(startItem + logsPerPage - 1, totalLogCount);
+
+        const text = `
+            <span class="text-gray-400">
+                ${translations.paginationShowing || 'Showing'} ${startItem} ${translations.paginationTo || 'to'} ${endItem} ${translations.paginationOf || 'of'} ${totalLogCount} ${translations.paginationResults || 'Results'}
+            </span>
+        `;
+
+        const buttons = `
+            <div class="flex items-center">
+                <button id="prev-page-btn" class="px-3 py-1 bg-gray-700 rounded-l-md hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed" ${currentPage === 1 ? 'disabled' : ''}>
+                    <i class="fas fa-chevron-left"></i> <span class="ml-1">${translations.paginationPrev || 'Previous'}</span>
+                </button>
+                <button id="next-page-btn" class="px-3 py-1 bg-gray-700 rounded-r-md hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed" ${currentPage === totalLogPages ? 'disabled' : ''}>
+                    <span class="mr-1">${translations.paginationNext || 'Next'}</span> <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        `;
+        
+        logPagination.innerHTML = text + buttons;
+    }
+
     async function fetchAndRenderLogs() {
         try {
-            logSessions = await api.get('/api/logs');
-            renderLogs();
+            const params = new URLSearchParams({
+                page: currentPage,
+                limit: logsPerPage,
+                sort: logSort.column,
+                order: logSort.order
+            });
+            const data = await api.get(`/api/logs?${params.toString()}`);
+            
+            logSessions = data.sessions;
+            totalLogPages = data.pages;
+            currentPage = data.page;
+            totalLogCount = data.total;
+
+            renderLogs(logSessions);
+            renderPagination();
+            logPageJumpInput.value = currentPage;
+            logPageJumpInput.max = totalLogPages;
+
         } catch (error) {
             console.error("Failed to fetch logs:", error);
             logTableBody.innerHTML = '<tr><td colspan="2" class="text-center text-red-400 p-4">Failed to load log sessions.</td></tr>';
@@ -492,7 +665,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Update indicator
             document.querySelectorAll('.sort-indicator').forEach(el => el.textContent = '');
             th.querySelector('.sort-indicator').textContent = logSort.order === 'asc' ? ' ▲' : ' ▼';
-            renderLogs();
+            fetchAndRenderLogs();
         }
     });
 
@@ -532,7 +705,45 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.classList.remove('flex');
     });
 
+    logPagination.addEventListener('click', (e) => {
+        const prevBtn = e.target.closest('#prev-page-btn');
+        const nextBtn = e.target.closest('#next-page-btn');
+
+        if (prevBtn && !prevBtn.disabled) {
+            currentPage--;
+            fetchAndRenderLogs();
+        } else if (nextBtn && !nextBtn.disabled) {
+            currentPage++;
+            fetchAndRenderLogs();
+        }
+    });
+
+    logsPerPageSelect.addEventListener('change', (e) => {
+        logsPerPage = parseInt(e.target.value, 10);
+        currentPage = 1; // Reset to first page
+        fetchAndRenderLogs();
+    });
+
+    logPageJumpBtn.addEventListener('click', () => {
+        const page = parseInt(logPageJumpInput.value, 10);
+        if (page > 0 && page <= totalLogPages) {
+            currentPage = page;
+            fetchAndRenderLogs();
+        } else {
+            showToast(`Please enter a valid page number between 1 and ${totalLogPages}.`, true);
+        }
+    });
+
+    langEnBtn.addEventListener('click', () => setLanguage('en'));
+    langZhBtn.addEventListener('click', () => setLanguage('zh'));
+
     // --- Initial Load ---
-    updateStatus(false);
-    fetchAndRenderRules();
+    async function initializeApp() {
+        const preferredLanguage = localStorage.getItem('preferredLanguage') || 'en';
+        await setLanguage(preferredLanguage);
+        updateStatus(false);
+        fetchAndRenderRules();
+    }
+
+    initializeApp();
 });
