@@ -214,10 +214,10 @@
         "opcode": { "value": "integer", "default": 0, "description": "操作码: 必须是 0 (Standard Query)。" },
         "aa": { "value": "integer", "default": 1, "description": "权威标志: 1 (是权威服务器), 0 (非权威)。" },
         "tc": { "value": "integer", "default": 0, "description": "截断标志: 通常为 0。" },
-        "rd": { "mode": "string", "default": "inherit", "description": "递归请求: 'inherit' (继承Query包的rd位), 'custom' (自定义为0或1)。" },
+        "rd": { "mode": "string", "value": "integer | null", "default": "inherit", "description": "递归请求: 'inherit' (继承Query包的rd位), 'custom' (自定义为0或1)。" },
         "ra": { "value": "integer", "default": 1, "description": "递归可用: 1 (服务器可用递归), 0 (不可用)。" },
-        "ad": { "value": "integer", "default": 0, "description": "验证数据(DNSSEC): 通常为 0。" },
-        "cd": { "value": "integer", "default": 0, "description": "检查禁用(DNSSEC): 通常为 0。" },
+        "ad": { "mode": "string", "value": "integer | null", "default": "inherit", "description": "验证数据(DNSSEC): 'inherit', 'custom'。" },
+        "cd": { "mode": "string", "value": "integer | null", "default": "inherit", "description": "检查禁用(DNSSEC): 'inherit', 'custom'。" },
         "rcode": { "value": "integer", "default": 0, "description": "响应码: 0 (No Error), 3 (NXDOMAIN), etc." }
       }
     },

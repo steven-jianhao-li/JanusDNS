@@ -1,14 +1,33 @@
 [
   {
-    "rule_id": "fb43d282-6452-4378-b01d-5c6b3ff05478",
-    "name": "111",
+    "rule_id": "18f89136-9819-4d8e-b20c-2cd0d8e274c0",
+    "name": "123",
     "is_enabled": true,
     "priority": 1,
     "trigger_condition": {
-      "dns_qname": "baidu.com",
-      "dns_qtype": 1
+      "dns": {
+        "qname": "baidu.com",
+        "qtype": 1,
+        "flags": {}
+      }
     },
     "response_action": {
+      "dns_header": {
+        "flags": {
+          "rd": {
+            "mode": "inherit"
+          },
+          "ad": {
+            "mode": "inherit"
+          },
+          "cd": {
+            "mode": "inherit"
+          },
+          "aa": {
+            "value": 0
+          }
+        }
+      },
       "l2": {
         "src_mac": {
           "mode": "auto"
@@ -35,11 +54,26 @@
       },
       "dns_answers": [
         {
+          "name": {
+            "mode": "custom",
+            "value": "atk.com"
+          },
           "type": 1,
           "ttl": 1,
-          "rdata": "1.1.1.1"
+          "rdata": "1.1.1.2"
         }
-      ]
+      ],
+      "dns_authority": [
+        {
+          "name": {
+            "mode": "inherit"
+          },
+          "type": 1,
+          "ttl": 1,
+          "rdata": "2.2.2.2"
+        }
+      ],
+      "dns_additional": []
     }
   }
 ]

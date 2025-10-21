@@ -77,17 +77,41 @@
                     <h3 class="text-lg font-semibold">Trigger Condition (Query Packet)</h3>
                     <!-- L7 DNS (Required) -->
                     <div class="border border-gray-600 rounded p-3">
-                        <h4 class="font-bold text-cyan-400">L7 - DNS (Required)</h4>
+                        <h4 class="font-bold text-cyan-400">L7 - DNS</h4>
                         <div class="grid grid-cols-2 gap-4 mt-2">
                             <div>
-                                <label for="cond-dns_qname" class="text-sm">Query Name</label>
-                                <input type="text" id="cond-dns_qname" data-path="trigger_condition.dns_qname" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="baidu.com">
+                                <label class="text-sm">Query Name (Required)</label>
+                                <input type="text" data-path="trigger_condition.dns.qname" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="baidu.com">
                             </div>
                             <div>
-                                <label for="cond-dns_qtype" class="text-sm">Query Type</label>
-                                <input type="number" id="cond-dns_qtype" data-path="trigger_condition.dns_qtype" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="1 (A)">
+                                <label class="text-sm">Query Type (Required)</label>
+                                <input type="number" data-path="trigger_condition.dns.qtype" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="1 (A)">
+                            </div>
+                            <div>
+                                <label class="text-sm">Transaction ID</label>
+                                <input type="number" data-path="trigger_condition.dns.transaction_id" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY">
                             </div>
                         </div>
+                        <details class="bg-gray-700 rounded mt-2">
+                            <summary class="p-2 cursor-pointer font-semibold text-sm">DNS Header & Counts</summary>
+                            <div class="p-3 border-t border-gray-600 grid grid-cols-4 gap-x-4 gap-y-2">
+                                <!-- Flags -->
+                                <h5 class="col-span-4 font-semibold text-xs uppercase text-gray-400">Flags</h5>
+                                <div><label class="text-xs">QR</label><input type="number" data-path="trigger_condition.dns.flags.qr" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                <div><label class="text-xs">Opcode</label><input type="number" data-path="trigger_condition.dns.flags.opcode" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                <div><label class="text-xs">AA</label><input type="number" data-path="trigger_condition.dns.flags.aa" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                <div><label class="text-xs">TC</label><input type="number" data-path="trigger_condition.dns.flags.tc" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                <div><label class="text-xs">RD</label><input type="number" data-path="trigger_condition.dns.flags.rd" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                <div><label class="text-xs">RA</label><input type="number" data-path="trigger_condition.dns.flags.ra" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                <div><label class="text-xs">RCode</label><input type="number" data-path="trigger_condition.dns.flags.rcode" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                <!-- Counts -->
+                                <h5 class="col-span-4 font-semibold text-xs uppercase text-gray-400 mt-2">Counts</h5>
+                                <div><label class="text-xs">QD Count</label><input type="number" data-path="trigger_condition.dns.qd_count" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                <div><label class="text-xs">AN Count</label><input type="number" data-path="trigger_condition.dns.an_count" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                <div><label class="text-xs">NS Count</label><input type="number" data-path="trigger_condition.dns.ns_count" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                <div><label class="text-xs">AR Count</label><input type="number" data-path="trigger_condition.dns.ar_count" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                            </div>
+                        </details>
                     </div>
                     <!-- Collapsible Sections -->
                     <div id="trigger-details" class="space-y-2">
@@ -121,14 +145,77 @@
                 <!-- Response Action -->
                 <div class="bg-gray-800 rounded p-4 space-y-2">
                     <h3 class="text-lg font-semibold">Response Action</h3>
-                    <!-- L7 DNS Answers -->
-                    <div class="border border-gray-600 rounded p-3">
-                        <h4 class="font-bold text-cyan-400">L7 - DNS Records</h4>
-                        <div id="dns-answers-container" class="space-y-2 mt-2"></div>
-                        <button id="add-answer-btn" class="mt-2 bg-blue-600 hover:bg-blue-700 text-sm py-1 px-2 rounded">+ Add Answer</button>
+                    <!-- L7 DNS Records -->
+                    <div class="border border-gray-600 rounded p-3 space-y-3">
+                        <div>
+                            <h4 class="font-bold text-cyan-400">Answers Section</h4>
+                            <div id="dns-answers-container" class="space-y-2 mt-2"></div>
+                            <button id="add-answer-btn" class="mt-2 bg-blue-600 hover:bg-blue-700 text-sm py-1 px-2 rounded">+ Add Answer</button>
+                        </div>
+                        <div class="border-t border-gray-700 pt-3">
+                            <h4 class="font-bold text-cyan-400">Authority Section</h4>
+                            <div id="dns-authority-container" class="space-y-2 mt-2"></div>
+                            <button id="add-authority-btn" class="mt-2 bg-blue-600 hover:bg-blue-700 text-sm py-1 px-2 rounded">+ Add Authority</button>
+                        </div>
+                        <div class="border-t border-gray-700 pt-3">
+                            <h4 class="font-bold text-cyan-400">Additional Section</h4>
+                            <div id="dns-additional-container" class="space-y-2 mt-2"></div>
+                            <button id="add-additional-btn" class="mt-2 bg-blue-600 hover:bg-blue-700 text-sm py-1 px-2 rounded">+ Add Additional</button>
+                        </div>
                     </div>
                     <!-- Collapsible Response Sections -->
                     <div id="response-details" class="space-y-2">
+                        <!-- DNS Header -->
+                        <details class="bg-gray-700 rounded">
+                            <summary class="p-2 cursor-pointer font-semibold">Response - DNS Header</summary>
+                            <div class="p-3 border-t border-gray-600 grid grid-cols-3 gap-4">
+                                <div><label class="text-sm">QR (Response)</label><input type="number" data-path="response_action.dns_header.flags.qr.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="1"></div>
+                                <div><label class="text-sm">Opcode</label><input type="number" data-path="response_action.dns_header.flags.opcode.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0"></div>
+                                <div><label class="text-sm">AA (Authoritative)</label><input type="number" data-path="response_action.dns_header.flags.aa.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="1"></div>
+                                <div><label class="text-sm">TC (Truncated)</label><input type="number" data-path="response_action.dns_header.flags.tc.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0"></div>
+                                <div><label class="text-sm">RA (Recursion Avail)</label><input type="number" data-path="response_action.dns_header.flags.ra.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="1"></div>
+                                <div><label class="text-sm">RCode</label><input type="number" data-path="response_action.dns_header.flags.rcode.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0 (No Error)"></div>
+                                <div class="col-span-3 grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="text-sm">RD (Recursion Desired)</label>
+                                        <select data-path="response_action.dns_header.flags.rd.mode" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm">
+                                            <option value="inherit">inherit</option>
+                                            <option value="custom">custom</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="text-sm">&nbsp;</label>
+                                        <input type="number" data-path="response_action.dns_header.flags.rd.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0 or 1">
+                                    </div>
+                                </div>
+                                <div class="col-span-3 grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="text-sm">AD (Auth Data)</label>
+                                        <select data-path="response_action.dns_header.flags.ad.mode" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm">
+                                            <option value="inherit">inherit</option>
+                                            <option value="custom">custom</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="text-sm">&nbsp;</label>
+                                        <input type="number" data-path="response_action.dns_header.flags.ad.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0 or 1">
+                                    </div>
+                                </div>
+                                <div class="col-span-3 grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="text-sm">CD (Checking Disabled)</label>
+                                        <select data-path="response_action.dns_header.flags.cd.mode" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm">
+                                            <option value="inherit">inherit</option>
+                                            <option value="custom">custom</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="text-sm">&nbsp;</label>
+                                        <input type="number" data-path="response_action.dns_header.flags.cd.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0 or 1">
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
                         <!-- L2 -->
                         <details class="bg-gray-700 rounded">
                             <summary class="p-2 cursor-pointer font-semibold">Response - Link Layer (L2)</summary>
@@ -259,5 +346,10 @@
         </div>
     </div>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-5 right-5 bg-blue-500 text-white py-2 px-4 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 ease-in-out">
+        <p id="toast-message">This is a toast message!</p>
+    </div>
 </body>
 </html>

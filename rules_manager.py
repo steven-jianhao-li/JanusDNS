@@ -44,49 +44,72 @@ def find_matching_rule(packet):
 
 def match_rule(packet, rule):
     """
-    Checks if a single packet matches a given rule based on the new nested schema.
+    Checks if a single packet matches a given rule based on the detailed nested schema
+    from the README.md. Follows the "layer-by-layer, field-by-field" validation principle.
     """
     condition = rule.get("trigger_condition", {})
-    
-    # Helper for safe access
-    def check(layer, field, packet_val):
-        val = condition.get(layer, {}).get(field)
-        return val is None or val == "" or val == packet_val
 
-    # --- 核心修改：适配扁平化的 DNS 条件结构 ---
-    # L7/DNS (Mandatory)
-    # 直接从 condition 对象获取 dns_qname 和 dns_qtype
-    packet_qname = packet[DNS].qd.qname.decode().rstrip('.')
-    rule_qname = condition.get("dns_qname", "").rstrip('.') # 使用 dns_qname
-    
-    # 检查查询名称和类型是否匹配。
-    if (packet_qname != rule_qname or
-        packet[DNS].qd.qtype != condition.get("dns_qtype")): # 使用 dns_qtype
+    # Helper for safe field checking. Returns True if rule field is not set (ANY) or matches packet.
+    def check(rule_value, packet_value):
+        return rule_value is None or rule_value == packet_value
+
+    # --- L2 Matching (Ethernet) ---
+    l2_cond = condition.get('l2', {})
+    if l2_cond:
+        if not check(l2_cond.get('src_mac'), packet.getlayer(Ether).src): return False
+        if not check(l2_cond.get('dst_mac'), packet.getlayer(Ether).dst): return False
+
+    # --- L3 Matching (IP) ---
+    l3_cond = condition.get('l3', {})
+    if l3_cond:
+        ip_layer = packet.getlayer(IP)
+        if not check(l3_cond.get('src_ip'), ip_layer.src): return False
+        if not check(l3_cond.get('dst_ip'), ip_layer.dst): return False
+        if not check(l3_cond.get('ttl'), ip_layer.ttl): return False
+        if not check(l3_cond.get('protocol'), ip_layer.proto): return False
+        # Note: ip_version is implicitly checked by the presence of the IP layer.
+
+    # --- L4 Matching (UDP) ---
+    l4_cond = condition.get('l4', {})
+    if l4_cond:
+        udp_layer = packet.getlayer(UDP)
+        if not check(l4_cond.get('src_port'), udp_layer.sport): return False
+        if not check(l4_cond.get('dst_port'), udp_layer.dport): return False
+
+    # --- L7 Matching (DNS) ---
+    dns_cond = condition.get('dns', {})
+    if not dns_cond: # DNS condition is mandatory for a DNS rule
         return False
 
-    # L2
-    if not check('l2', 'src_mac', packet[Ether].src): return False
-    if not check('l2', 'dst_mac', packet[Ether].dst): return False
-
-    # L3
-    if not check('l3', 'src_ip', packet[IP].src): return False
-    if not check('l3', 'dst_ip', packet[IP].dst): return False
-    if not check('l3', 'ttl', packet[IP].ttl): return False
-    if not check('l3', 'protocol', packet[IP].proto): return False
-
-    # L4
-    if not check('l4', 'src_port', packet[UDP].sport): return False
-    if not check('l4', 'dst_port', packet[UDP].dport): return False
-
-    # L7/DNS Flags (Optional) - 注意：此部分逻辑仍依赖嵌套结构，如果需要请一并修改
-    # 为了最小改动，我们暂时保持原样，因为它不是当前问题的核心
-    dns_cond = condition.get('dns', {}) # 保留此行以兼容可能存在的dns.flags
-    dns_flags_cond = dns_cond.get('flags', {})
-    if dns_flags_cond:
-        if 'rd' in dns_flags_cond and dns_flags_cond['rd'] != packet[DNS].rd: return False
-        if 'opcode' in dns_flags_cond and dns_flags_cond['opcode'] != packet[DNS].opcode: return False
-        # ... add other flag checks as needed
+    dns_layer = packet.getlayer(DNS)
     
+    # Step 1: Mandatory fields (qname, qtype)
+    packet_qname = dns_layer.qd.qname.decode().rstrip('.')
+    if dns_cond.get('qname') != packet_qname: return False
+    if dns_cond.get('qtype') != dns_layer.qd.qtype: return False
+
+    # Step 2: Optional DNS header and count fields
+    if not check(dns_cond.get('transaction_id'), dns_layer.id): return False
+    
+    # Counts
+    if not check(dns_cond.get('qd_count'), dns_layer.qdcount): return False
+    if not check(dns_cond.get('an_count'), dns_layer.ancount): return False
+    if not check(dns_cond.get('ns_count'), dns_layer.nscount): return False
+    if not check(dns_cond.get('ar_count'), dns_layer.arcount): return False
+
+    # Flags
+    flags_cond = dns_cond.get('flags', {})
+    if flags_cond:
+        if not check(flags_cond.get('qr'), dns_layer.qr): return False
+        if not check(flags_cond.get('opcode'), dns_layer.opcode): return False
+        if not check(flags_cond.get('aa'), dns_layer.aa): return False
+        if not check(flags_cond.get('tc'), dns_layer.tc): return False
+        if not check(flags_cond.get('rd'), dns_layer.rd): return False
+        if not check(flags_cond.get('ra'), dns_layer.ra): return False
+        if not check(flags_cond.get('ad'), dns_layer.ad): return False
+        if not check(flags_cond.get('cd'), dns_layer.cd): return False
+        if not check(flags_cond.get('rcode'), dns_layer.rcode): return False
+
     print(f"[*] Packet matched rule: {rule.get('name', rule.get('rule_id'))}")
     return True
 

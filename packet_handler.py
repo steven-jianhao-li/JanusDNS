@@ -1,7 +1,8 @@
 import threading
 # 从 scapy.all 导入 get_if_addr
-from scapy.all import sniff, IP, UDP, DNS, Ether, get_if_addr # Ether 已经在这里，很好
-from scapy.all import sendp, DNSQR, DNSRR
+from scapy.all import sniff, IP, UDP, Ether, get_if_addr, get_if_hwaddr, sendp
+# 核心修正：移除对不存在的类的导入，只导入通用的 DNSRR
+from scapy.layers.dns import DNS, DNSQR, DNSRR
 import socket
 import rules_manager
 import log_manager
@@ -81,95 +82,141 @@ def process_packet(packet):
             log_manager.log_triggered_rule(matched_rule, packet)
             log_manager.save_pcap_files(matched_rule, packet, response_packet)
 
-def get_response_value(config, query_packet, auto_value=None):
-    """Helper to resolve response values based on mode."""
-    mode = config.get("mode")
+def get_response_value(config, query_value, auto_value=None):
+    """
+    Resolves a response field's value based on its configuration mode ('inherit', 'custom', 'auto').
+    """
+    mode = config.get("mode", "inherit")  # Default to inherit for safety
     if mode == "custom":
         return config.get("value")
-    if mode == "inherit":
-        # This is a simplified mapping. A real implementation would need more context.
-        # For now, we assume the frontend provides paths that can be resolved.
-        # e.g., inherit path could be 'l2.src_mac'
-        path = config.get("inherit_path", "").split('.') # Example, not in schema
-        val = query_packet
-        for key in path:
-            val = val.getlayer(key) # Simplified
-        return val
     if mode == "auto":
         return auto_value
-    return config.get("value") # Fallback for simple structures
+    # Default is "inherit"
+    return query_value
+
+def build_rr_section(section_config, query_packet):
+    """
+    Builds a Scapy DNS Resource Record section (an, ns, ar) from a configuration list.
+    """
+    section = None
+    if not section_config:
+        return None
+        
+    qname = query_packet[DNS].qd.qname
+
+    for rr_conf in section_config:
+        # Resolve RR name based on its mode
+        rrname_conf = rr_conf.get("name", {})
+        rrname = get_response_value(rrname_conf, qname, qname)
+
+        # Handle special case for OPT record (EDNS0)
+        if rr_conf.get("type") == 41:
+            # Per Readme, UDP payload size is a key parameter. It's stored in 'rclass' for OPT.
+            udp_payload_size = rr_conf.get("udp_payload_size", 1232)
+            # 核心修正：使用通用的 DNSRR 手动构造 EDNS0 OPT 记录，以兼容旧版 Scapy
+            rr = DNSRR(
+                rrname='',  # OPT 记录的名称字段是根，即一个空字符串
+                type=41,    # 记录类型为 OPT
+                rclass=udp_payload_size, # rclass 字段用于存放 UDP 载荷大小
+                ttl=0       # ttl 字段可用于扩展标志，0 是安全的默认值
+            )
+        else:  # Standard Resource Record
+            rr = DNSRR(
+                rrname=rrname,
+                type=rr_conf.get("type"),
+                ttl=rr_conf.get("ttl"),
+                rdata=rr_conf.get("rdata")
+            )
+
+        # Chain the records together
+        if section is None:
+            section = rr
+        else:
+            section = section / rr
+            
+    return section
+
+def get_flag_value(flags_conf, flag_name, default):
+    """
+    Safely gets a flag's integer value from the rule configuration, ensuring type safety.
+    """
+    flag_config = flags_conf.get(flag_name, {})
+    # Ensure flag_config is a dictionary before proceeding
+    if isinstance(flag_config, dict):
+        value = flag_config.get('value')
+        # Return the value only if it's an integer
+        if isinstance(value, int):
+            return value
+    # If anything fails (not a dict, no 'value', or value is not int), return the default
+    return default
 
 def generate_response(query_packet, rule):
     """
-    Constructs a DNS response packet based on the new, detailed rule schema.
+    Constructs a DNS response packet based on the detailed rule schema from the README.md.
     """
     action = rule.get("response_action", {})
+    if not action:
+        return None
 
-    # --- Resolve L2/L3/L4 values based on mode ---
-    def resolve_val(path, query_val):
-        # Helper to get nested config
-        keys = path.split('.')
-        config = action
-        for key in keys:
-            config = config.get(key, {})
-        
-        mode = config.get("mode")
-        if mode == "custom":
-            return config.get("value")
-        if mode == "inherit":
-            return query_val
-        if mode == "auto":
-            # 'auto' is tricky without more context (e.g. which interface to use)
-            # We'll default to inheriting for now as it's the most common 'auto' case
-            return query_val
-        return query_val # Default to inherit
+    # --- Resolve L2/L3/L4 values based on README logic ---
+    iface = query_packet.sniffed_on
+    my_mac = get_if_hwaddr(iface)
+    my_ip = get_if_addr(iface)
 
-    # L2
-    eth_src = resolve_val('l2.src_mac', query_packet[Ether].dst)
-    eth_dst = resolve_val('l2.dst_mac', query_packet[Ether].src)
-    # L3
-    ip_src = resolve_val('l3.src_ip', query_packet[IP].dst)
-    ip_dst = resolve_val('l3.dst_ip', query_packet[IP].src)
-    # L4
-    udp_sport = resolve_val('l4.src_port', query_packet[UDP].dport)
-    udp_dport = resolve_val('l4.dst_port', query_packet[UDP].sport)
+    eth_src = get_response_value(action.get('l2', {}).get('src_mac', {}), query_packet[Ether].dst, my_mac)
+    eth_dst = get_response_value(action.get('l2', {}).get('dst_mac', {}), query_packet[Ether].src)
+    
+    ip_src = get_response_value(action.get('l3', {}).get('src_ip', {}), query_packet[IP].dst, my_ip)
+    ip_dst = get_response_value(action.get('l3', {}).get('dst_ip', {}), query_packet[IP].src)
+
+    udp_sport = get_response_value(action.get('l4', {}).get('src_port', {}), query_packet[UDP].dport)
+    udp_dport = get_response_value(action.get('l4', {}).get('dst_port', {}), query_packet[UDP].sport)
 
     # --- Build DNS Layer ---
-    header = action.get('dns_header', {})
-    flags = header.get('flags', {})
-    
-    # Build answers
-    an = None
-    answers_config = action.get('dns_answers', [])
-    for answer_conf in answers_config:
-        rr = DNSRR(
-            rrname=query_packet[DNS].qd.qname, # Default to inheriting name
-            type=answer_conf.get('type'),
-            ttl=answer_conf.get('ttl'),
-            rdata=answer_conf.get('rdata')
-        )
-        if an is None:
-            an = rr
-        else:
-            an = an / rr
-            
-    response_dns = DNS(
-        id=query_packet[DNS].id, # Always inherit transaction ID
-        qd=query_packet[DNS].qd, # Always inherit question
-        
-        qr=flags.get('qr', 1),
-        opcode=flags.get('opcode', 0),
-        aa=flags.get('aa', 0),
-        tc=flags.get('tc', 0),
-        rd=flags.get('rd', query_packet[DNS].rd), # Inherit if not specified
-        ra=flags.get('ra', 1),
-        rcode=flags.get('rcode', 0),
-        
-        ancount=len(answers_config),
-        an=an
-    )
+    header_conf = action.get('dns_header', {})
+    flags_conf = header_conf.get('flags', {})
 
-    # Construct the full packet
+    # Build all three RR sections
+    dns_answers_conf = action.get('dns_answers', [])
+    dns_authority_conf = action.get('dns_authority', [])
+    dns_additional_conf = action.get('dns_additional', [])
+    
+    an_section = build_rr_section(dns_answers_conf, query_packet)
+    ns_section = build_rr_section(dns_authority_conf, query_packet)
+    ar_section = build_rr_section(dns_additional_conf, query_packet)
+
+    # Resolve 'rd' flag separately due to its 'inherit' mode
+    rd_flag_conf = flags_conf.get('rd', {})
+    rd_flag = get_response_value(rd_flag_conf, query_packet[DNS].rd, query_packet[DNS].rd)
+
+    response_dns = DNS(
+        # Per Readme, Transaction ID and Question must be inherited
+        id=query_packet[DNS].id,
+        qd=query_packet[DNS].qd,
+        
+        # Set flags robustly from config using the helper function
+        qr=get_flag_value(flags_conf, 'qr', 1),
+        opcode=get_flag_value(flags_conf, 'opcode', 0),
+        aa=get_flag_value(flags_conf, 'aa', 1),
+        tc=get_flag_value(flags_conf, 'tc', 0),
+        rd=rd_flag,
+        ra=get_flag_value(flags_conf, 'ra', 1),
+        ad=get_flag_value(flags_conf, 'ad', 0),
+        cd=get_flag_value(flags_conf, 'cd', 0),
+        rcode=get_flag_value(flags_conf, 'rcode', 0),
+        
+        # Manually set counts to ensure correctness, overriding Scapy's auto-calculation
+        ancount=len(dns_answers_conf),
+        nscount=len(dns_authority_conf),
+        arcount=len(dns_additional_conf),
+
+        # Assign the built sections
+        an=an_section,
+        ns=ns_section,
+        ar=ar_section
+    )
+    
+    # --- Assemble and return the full packet ---
     response_packet = (
         Ether(src=eth_src, dst=eth_dst) /
         IP(src=ip_src, dst=ip_dst) /
@@ -194,8 +241,9 @@ def start_sniffing():
     
     print("[*] Starting packet sniffer...")
     # The sniff function will block, so it runs in a thread.
-    # 核心改动：明确指定监听的网络接口。Scapy的`iface`参数可以接收一个接口列表。
-    sniff(iface=active_interfaces, filter="udp port 53", prn=process_packet, store=False, stop_filter=lambda p: stop_sniffing.is_set())
+    # We use a loop with a timeout to make the sniffer responsive to the stop event.
+    while not stop_sniffing.is_set():
+        sniff(iface=active_interfaces, filter="udp port 53", prn=process_packet, store=False, timeout=1)
     print("[*] Packet sniffer stopped.")
 
 

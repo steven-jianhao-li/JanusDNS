@@ -16,6 +16,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const deleteRuleBtn = document.getElementById('delete-rule-btn');
     const addAnswerBtn = document.getElementById('add-answer-btn');
     const dnsAnswersContainer = document.getElementById('dns-answers-container');
+    const addAuthorityBtn = document.getElementById('add-authority-btn');
+    const dnsAuthorityContainer = document.getElementById('dns-authority-container');
+    const addAdditionalBtn = document.getElementById('add-additional-btn');
+    const dnsAdditionalContainer = document.getElementById('dns-additional-container');
     
     const ruleEditor = document.getElementById('rule-editor');
     const logsViewer = document.getElementById('logs-viewer');
@@ -30,6 +34,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalTaskId = document.getElementById('modal-task-id');
     const modalLogContent = document.getElementById('modal-log-content');
     const modalDownloadLink = document.getElementById('modal-download-pcap');
+    const toast = document.getElementById('toast');
+    const toastMessage = document.getElementById('toast-message');
+
+    // --- UI Functions ---
+    function showToast(message, isError = false) {
+        toastMessage.textContent = message;
+        toast.classList.remove('bg-blue-500', 'bg-red-500', 'translate-x-full');
+        
+        if (isError) {
+            toast.classList.add('bg-red-500');
+        } else {
+            toast.classList.add('bg-blue-500');
+        }
+
+        // Show the toast
+        toast.classList.remove('translate-x-full');
+        toast.style.transform = 'translateX(0)';
+
+        // Hide it after 3 seconds
+        setTimeout(() => {
+            toast.style.transform = 'translateX(120%)';
+        }, 3000);
+    }
 
     // --- API Functions ---
     const api = {
@@ -100,6 +127,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         dnsAnswersContainer.innerHTML = '';
+        dnsAuthorityContainer.innerHTML = '';
+        dnsAdditionalContainer.innerHTML = '';
     }
 
     function displayRuleInEditor(rule) {
@@ -110,30 +139,90 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('rule-name').value = rule.name;
         document.getElementById('rule-enabled').checked = rule.is_enabled;
 
-        const getProp = (obj, path) => path.split('.').reduce((o, k) => (o && o[k] !== undefined) ? o[k] : undefined, obj);
+        const getProp = (obj, path) => path.split('.').reduce((o, k) => (o && o[k] !== undefined) ? o[k] : null, obj);
 
-        ruleEditor.querySelectorAll('input[data-path], select[data-path]').forEach(el => {
-            const path = el.dataset.path;
-            const value = getProp(rule, path);
-            if (value !== undefined && value !== null) {
-                el.value = value;
+        // Populate simple trigger fields
+        ruleEditor.querySelectorAll('input[data-path^="trigger_condition"], input[data-path^="name"]').forEach(el => {
+            const value = getProp(rule, el.dataset.path);
+            if (value !== null) el.value = value;
+        });
+        
+        // Populate complex response fields (mode/value)
+        ruleEditor.querySelectorAll('select[data-path$=".mode"]').forEach(selectEl => {
+            const path = selectEl.dataset.path;
+            const valueEl = document.querySelector(`input[data-path="${path.replace('.mode', '.value')}"]`);
+            const config = getProp(rule, path.replace('.mode', ''));
+            
+            if (config && config.mode) {
+                selectEl.value = config.mode;
+                if (valueEl && config.value) {
+                    valueEl.value = config.value;
+                }
+                if (valueEl) valueEl.disabled = config.mode !== 'custom';
             }
         });
 
+        // Populate DNS Header flags
+        ruleEditor.querySelectorAll('[data-path*="dns_header.flags"]').forEach(el => {
+            const path = el.dataset.path;
+            const flagConf = getProp(rule, path.substring(0, path.lastIndexOf('.')));
+            
+            if (flagConf) {
+                if (el.tagName === 'SELECT') { // Handle mode selects (rd, ad, cd)
+                    el.value = flagConf.mode || 'inherit';
+                    // Also update the corresponding value input
+                    const valueInput = ruleEditor.querySelector(`[data-path="${path.replace('.mode', '.value')}"]`);
+                    if (valueInput) {
+                        valueInput.value = flagConf.value !== undefined ? flagConf.value : '';
+                        valueInput.disabled = (flagConf.mode || 'inherit') !== 'custom';
+                    }
+                } else { // Handle simple value inputs (qr, opcode, etc.)
+                    const simpleFlagConf = getProp(rule, path);
+                    if (simpleFlagConf && simpleFlagConf.value !== undefined) {
+                        el.value = simpleFlagConf.value;
+                    }
+                }
+            }
+        });
+
+        // Populate RR sections
         const answers = getProp(rule, 'response_action.dns_answers') || [];
-        answers.forEach(answer => addAnswerRow(answer));
+        answers.forEach(rr => addRRRow(dnsAnswersContainer, rr));
+        
+        const authorities = getProp(rule, 'response_action.dns_authority') || [];
+        authorities.forEach(rr => addRRRow(dnsAuthorityContainer, rr));
+
+        const additionals = getProp(rule, 'response_action.dns_additional') || [];
+        additionals.forEach(rr => addRRRow(dnsAdditionalContainer, rr));
     }
     
-    function addAnswerRow(answer = {}) {
-        const answerDiv = document.createElement('div');
-        answerDiv.className = 'dns-answer-row grid grid-cols-10 gap-2 items-center';
-        answerDiv.innerHTML = `
-            <input type="number" data-key="type" class="col-span-2 w-full bg-gray-600 rounded p-1 text-sm" placeholder="Type" value="${answer.type || ''}">
-            <input type="number" data-key="ttl" class="col-span-2 w-full bg-gray-600 rounded p-1 text-sm" placeholder="TTL" value="${answer.ttl || ''}">
-            <input type="text" data-key="rdata" class="col-span-5 w-full bg-gray-600 rounded p-1 text-sm" placeholder="RDATA (e.g., IP address)" value="${answer.rdata || ''}">
-            <button class="remove-answer-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs">X</button>
+    function addRRRow(container, rr = {}) {
+        const rrDiv = document.createElement('div');
+        rrDiv.className = 'rr-row grid grid-cols-12 gap-2 items-center mb-2';
+        
+        const nameMode = rr.name?.mode || 'inherit';
+        const nameValue = rr.name?.value || '';
+        const type = rr.type || '';
+        const isOpt = type === 41;
+
+        rrDiv.innerHTML = `
+            <select data-key="name.mode" class="col-span-2 bg-gray-600 rounded p-1 text-sm">
+                <option value="inherit" ${nameMode === 'inherit' ? 'selected' : ''}>Inherit Name</option>
+                <option value="custom" ${nameMode === 'custom' ? 'selected' : ''}>Custom</option>
+            </select>
+            <input type="text" data-key="name.value" class="col-span-3 w-full bg-gray-600 rounded p-1 text-sm" placeholder="Custom Name" value="${nameValue}" ${nameMode !== 'custom' ? 'disabled' : ''}>
+            <input type="number" data-key="type" class="col-span-1 w-full bg-gray-600 rounded p-1 text-sm" placeholder="Type" value="${type}">
+            <input type="number" data-key="ttl" class="col-span-1 w-full bg-gray-600 rounded p-1 text-sm" placeholder="TTL" value="${rr.ttl || ''}" ${isOpt ? 'disabled' : ''}>
+            <input type="text" data-key="rdata" class="col-span-4 w-full bg-gray-600 rounded p-1 text-sm" placeholder="RDATA" value="${rr.rdata || ''}" ${isOpt ? 'disabled' : ''}>
+            <button class="remove-rr-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs">X</button>
         `;
-        dnsAnswersContainer.appendChild(answerDiv);
+        container.appendChild(rrDiv);
+
+        // Add event listener for the new row's select
+        rrDiv.querySelector('select[data-key="name.mode"]').addEventListener('change', (e) => {
+            const valueInput = e.target.nextElementSibling;
+            valueInput.disabled = e.target.value !== 'custom';
+        });
     }
 
     // --- Event Handlers ---
@@ -145,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
             displayRuleInEditor(selectedRule);
         } catch (error) {
             console.error("Failed to fetch rules:", error);
-            alert("Error: Could not fetch rules from the server.");
+            showToast("Error: Could not fetch rules from the server.", true);
         }
     }
 
@@ -153,10 +242,10 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const result = await api.post('/api/control/start');
             updateStatus(true);
-            alert(result.message || 'Sniffer started successfully.');
+            showToast(result.message || 'Sniffer started successfully.');
         } catch (error) {
             console.error("Failed to start sniffer:", error);
-            alert(`Error starting sniffer: ${error.message}`);
+            showToast(`Error starting sniffer: ${error.message}`, true);
         }
     });
 
@@ -164,10 +253,10 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const result = await api.post('/api/control/stop');
             updateStatus(false);
-            alert(result.message || 'Sniffer stopped successfully.');
+            showToast(result.message || 'Sniffer stopped successfully.');
         } catch (error) {
             console.error("Failed to stop sniffer:", error);
-            alert(`Error stopping sniffer: ${error.message}`);
+            showToast(`Error stopping sniffer: ${error.message}`, true);
         }
     });
 
@@ -190,39 +279,87 @@ document.addEventListener('DOMContentLoaded', () => {
             rule_id: document.getElementById('rule-id').value || null,
             name: document.getElementById('rule-name').value,
             is_enabled: document.getElementById('rule-enabled').checked,
-            priority: 1
+            priority: 1,
+            trigger_condition: {},
+            response_action: {}
         };
 
-        const setProp = (obj, path, value) => {
+        const setProp = (obj, path, value, element) => {
             const keys = path.split('.');
             let current = obj;
             for (let i = 0; i < keys.length - 1; i++) {
                 current = current[keys[i]] = current[keys[i]] || {};
             }
-            if (value !== '' && value !== null) {
+            if (value !== '' && value !== null && value !== undefined) {
                 const key = keys[keys.length - 1];
-                const el = document.querySelector(`[data-path="${path}"]`);
-                current[key] = (el && el.type === 'number') ? parseInt(value, 10) : value;
+                const el = element || document.querySelector(`[data-path="${path}"]`);
+                const isNumber = el && (el.type === 'number' || el.dataset.type === 'number');
+                current[key] = isNumber ? parseInt(value, 10) : value;
             }
         };
 
-        ruleEditor.querySelectorAll('input[data-path], select[data-path]').forEach(el => {
+        // Collect simple trigger fields
+        ruleEditor.querySelectorAll('input[data-path^="trigger_condition"]').forEach(el => {
             setProp(ruleData, el.dataset.path, el.value);
         });
 
-        const answers = [];
-        dnsAnswersContainer.querySelectorAll('.dns-answer-row').forEach(row => {
-            const answer = {};
-            row.querySelectorAll('input[data-key]').forEach(input => {
-                if (input.value) {
-                    answer[input.dataset.key] = input.type === 'number' ? parseInt(input.value, 10) : input.value;
-                }
-            });
-            if (answer.type && answer.ttl && answer.rdata) {
-                answers.push(answer);
+        // Collect complex response fields
+        ruleEditor.querySelectorAll('select[data-path$=".mode"]').forEach(selectEl => {
+            const path = selectEl.dataset.path.replace('.mode', '');
+            const valueEl = document.querySelector(`input[data-path="${path}.value"]`);
+            const mode = selectEl.value;
+            const value = valueEl ? valueEl.value : null;
+            
+            const config = { mode };
+            if (mode === 'custom' && value) {
+                config.value = valueEl.type === 'number' ? parseInt(value, 10) : value;
+            }
+            setProp(ruleData, path, config);
+        });
+
+        // Collect DNS Header flags
+        // Simple flags (value only)
+        ruleEditor.querySelectorAll('input[data-path*="dns_header.flags"][data-path$=".value"]').forEach(el => {
+            const path = el.dataset.path;
+            // Exclude complex flags that have a .mode sibling
+            const modeEl = ruleEditor.querySelector(`[data-path="${path.replace('.value', '.mode')}"]`);
+            if (!modeEl && el.value) {
+                setProp(ruleData, el.dataset.path, parseInt(el.value, 10));
             }
         });
-        setProp(ruleData, 'response_action.dns_answers', answers);
+
+        // Complex flags (mode + value)
+        ruleEditor.querySelectorAll('select[data-path*="dns_header.flags"][data-path$=".mode"]').forEach(selectEl => {
+            const path = selectEl.dataset.path.replace('.mode', '');
+            const valueEl = ruleEditor.querySelector(`input[data-path="${path}.value"]`);
+            const mode = selectEl.value;
+            const value = valueEl ? valueEl.value : null;
+            
+            const config = { mode };
+            if (mode === 'custom' && value) {
+                config.value = parseInt(value, 10);
+            }
+            setProp(ruleData, path, config);
+        });
+
+        // Collect RR sections
+        const collectRRSection = (container) => {
+            const rrs = [];
+            container.querySelectorAll('.rr-row').forEach(row => {
+                const rr = {};
+                row.querySelectorAll('input[data-key], select[data-key]').forEach(input => {
+                    setProp(rr, input.dataset.key, input.value, input);
+                });
+                if (rr.type) { // Type is mandatory for an RR
+                    rrs.push(rr);
+                }
+            });
+            return rrs;
+        };
+        
+        ruleData.response_action.dns_answers = collectRRSection(dnsAnswersContainer);
+        ruleData.response_action.dns_authority = collectRRSection(dnsAuthorityContainer);
+        ruleData.response_action.dns_additional = collectRRSection(dnsAdditionalContainer);
 
         try {
             if (selectedRuleId) {
@@ -231,36 +368,51 @@ document.addEventListener('DOMContentLoaded', () => {
                 const newRule = await api.post('/api/rules', ruleData);
                 selectedRuleId = newRule.rule_id;
             }
-            alert('Rule saved!');
+            showToast('Rule saved!');
             fetchAndRenderRules();
         } catch (error) {
             console.error("Failed to save rule:", error);
-            alert(`Error saving rule: ${error.message}`);
+            showToast(`Error saving rule: ${error.message}`, true);
         }
     });
     
     deleteRuleBtn.addEventListener('click', async () => {
         if (!selectedRuleId) {
-            alert("No rule selected to delete.");
+            showToast("No rule selected to delete.", true);
             return;
         }
         if (confirm("Are you sure you want to delete this rule?")) {
             try {
                 await api.delete(`/api/rules/${selectedRuleId}`);
                 selectedRuleId = null;
-                alert('Rule deleted!');
+                showToast('Rule deleted!');
                 fetchAndRenderRules();
             } catch (error) {
                 console.error("Failed to delete rule:", error);
-                alert(`Error deleting rule: ${error.message}`);
+                showToast(`Error deleting rule: ${error.message}`, true);
             }
         }
     });
     
-    addAnswerBtn.addEventListener('click', () => addAnswerRow());
-    dnsAnswersContainer.addEventListener('click', (e) => {
-        if (e.target.classList.contains('remove-answer-btn')) {
-            e.target.closest('.dns-answer-row').remove();
+    addAnswerBtn.addEventListener('click', () => addRRRow(dnsAnswersContainer));
+    addAuthorityBtn.addEventListener('click', () => addRRRow(dnsAuthorityContainer));
+    addAdditionalBtn.addEventListener('click', () => addRRRow(dnsAdditionalContainer));
+
+    const handleRemoveRR = (e) => {
+        if (e.target.classList.contains('remove-rr-btn')) {
+            e.target.closest('.rr-row').remove();
+        }
+    };
+    dnsAnswersContainer.addEventListener('click', handleRemoveRR);
+    dnsAuthorityContainer.addEventListener('click', handleRemoveRR);
+    dnsAdditionalContainer.addEventListener('click', handleRemoveRR);
+
+    ruleEditor.addEventListener('change', (e) => {
+        if (e.target.matches('select[data-path$=".mode"]')) {
+            const valueInput = e.target.parentElement.querySelector('input[data-path$=".value"]');
+            if (valueInput) {
+                valueInput.disabled = e.target.value !== 'custom';
+            }
         }
     });
 
