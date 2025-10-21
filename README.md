@@ -16,8 +16,6 @@
   <a href="https://tailwindcss.com/"><img src="https://img.shields.io/badge/Tailwind_CSS-Styling-blueviolet.svg" alt="Tailwind CSS"></a>
 </p>
 
-> ⚠️ **License**: This project is licensed under the [MIT License](LICENSE). You are free to use, modify, and distribute it.
-
 ---
 
 ## 📖 Project Introduction
@@ -158,5 +156,6 @@ The core of JanusDNS is its rule engine, which uses a flexible JSON structure. T
   }
 }
 ```
+
 
 </details>
