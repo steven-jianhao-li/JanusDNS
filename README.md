@@ -77,7 +77,6 @@ project/
     ```bash
     pip install -r requirements.txt
     ```
-    *(Note: You will need to create a `requirements.txt` file containing `scapy` and `flask`)*
 
 3.  **Run the Application**:
     You need to run the application with root privileges for Scapy to access raw sockets.
