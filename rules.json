@@ -1,0 +1,45 @@
+[
+  {
+    "rule_id": "fb43d282-6452-4378-b01d-5c6b3ff05478",
+    "name": "111",
+    "is_enabled": true,
+    "priority": 1,
+    "trigger_condition": {
+      "dns_qname": "baidu.com",
+      "dns_qtype": 1
+    },
+    "response_action": {
+      "l2": {
+        "src_mac": {
+          "mode": "auto"
+        },
+        "dst_mac": {
+          "mode": "inherit"
+        }
+      },
+      "l3": {
+        "src_ip": {
+          "mode": "inherit"
+        },
+        "dst_ip": {
+          "mode": "inherit"
+        }
+      },
+      "l4": {
+        "src_port": {
+          "mode": "inherit"
+        },
+        "dst_port": {
+          "mode": "inherit"
+        }
+      },
+      "dns_answers": [
+        {
+          "type": 1,
+          "ttl": 1,
+          "rdata": "1.1.1.1"
+        }
+      ]
+    }
+  }
+]
