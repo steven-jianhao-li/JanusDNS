@@ -141,46 +141,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const getProp = (obj, path) => path.split('.').reduce((o, k) => (o && o[k] !== undefined) ? o[k] : null, obj);
 
-        // Populate simple trigger fields
-        ruleEditor.querySelectorAll('input[data-path^="trigger_condition"], input[data-path^="name"]').forEach(el => {
-            const value = getProp(rule, el.dataset.path);
-            if (value !== null) el.value = value;
-        });
-        
-        // Populate complex response fields (mode/value)
-        ruleEditor.querySelectorAll('select[data-path$=".mode"]').forEach(selectEl => {
-            const path = selectEl.dataset.path;
-            const valueEl = document.querySelector(`input[data-path="${path.replace('.mode', '.value')}"]`);
-            const config = getProp(rule, path.replace('.mode', ''));
-            
-            if (config && config.mode) {
-                selectEl.value = config.mode;
-                if (valueEl && config.value) {
-                    valueEl.value = config.value;
-                }
-                if (valueEl) valueEl.disabled = config.mode !== 'custom';
-            }
-        });
-
-        // Populate DNS Header flags
-        ruleEditor.querySelectorAll('[data-path*="dns_header.flags"]').forEach(el => {
+        // Universal populator for all fields with a data-path
+        ruleEditor.querySelectorAll('[data-path]').forEach(el => {
             const path = el.dataset.path;
-            const flagConf = getProp(rule, path.substring(0, path.lastIndexOf('.')));
-            
-            if (flagConf) {
-                if (el.tagName === 'SELECT') { // Handle mode selects (rd, ad, cd)
-                    el.value = flagConf.mode || 'inherit';
-                    // Also update the corresponding value input
-                    const valueInput = ruleEditor.querySelector(`[data-path="${path.replace('.mode', '.value')}"]`);
-                    if (valueInput) {
-                        valueInput.value = flagConf.value !== undefined ? flagConf.value : '';
-                        valueInput.disabled = (flagConf.mode || 'inherit') !== 'custom';
+            const value = getProp(rule, path);
+
+            if (el.tagName === 'SELECT') {
+                // Handle mode selects
+                if (path.endsWith('.mode')) {
+                    const config = getProp(rule, path.replace('.mode', ''));
+                    el.value = config?.mode || el.options.value; // Default to first option
+                    
+                    const valueEl = ruleEditor.querySelector(`[data-path="${path.replace('.mode', '.value')}"]`);
+                    if (valueEl) {
+                        valueEl.value = config?.value ?? '';
+                        valueEl.disabled = (config?.mode || 'inherit') !== 'custom';
                     }
-                } else { // Handle simple value inputs (qr, opcode, etc.)
-                    const simpleFlagConf = getProp(rule, path);
-                    if (simpleFlagConf && simpleFlagConf.value !== undefined) {
-                        el.value = simpleFlagConf.value;
-                    }
+                }
+            } else if (el.type === 'checkbox') {
+                el.checked = !!value;
+            } else {
+                 // Handle all other inputs, including nested values like flags
+                if (value !== null) {
+                    el.value = value;
                 }
             }
         });
@@ -279,67 +262,66 @@ document.addEventListener('DOMContentLoaded', () => {
             rule_id: document.getElementById('rule-id').value || null,
             name: document.getElementById('rule-name').value,
             is_enabled: document.getElementById('rule-enabled').checked,
-            priority: 1,
-            trigger_condition: {},
-            response_action: {}
+            priority: 1, // Default priority
         };
 
-        const setProp = (obj, path, value, element) => {
+        const setProp = (obj, path, value) => {
+            // Only set the property if the value is not an empty string
+            if (value === '' || value === null || value === undefined) return;
+            
             const keys = path.split('.');
             let current = obj;
             for (let i = 0; i < keys.length - 1; i++) {
                 current = current[keys[i]] = current[keys[i]] || {};
             }
-            if (value !== '' && value !== null && value !== undefined) {
-                const key = keys[keys.length - 1];
-                const el = element || document.querySelector(`[data-path="${path}"]`);
-                const isNumber = el && (el.type === 'number' || el.dataset.type === 'number');
-                current[key] = isNumber ? parseInt(value, 10) : value;
-            }
+            const finalKey = keys[keys.length - 1];
+            const isNumber = !isNaN(parseFloat(value)) && isFinite(value);
+            current[finalKey] = isNumber ? parseFloat(value) : value;
         };
 
-        // Collect simple trigger fields
-        ruleEditor.querySelectorAll('input[data-path^="trigger_condition"]').forEach(el => {
-            setProp(ruleData, el.dataset.path, el.value);
-        });
-
-        // Collect complex response fields
-        ruleEditor.querySelectorAll('select[data-path$=".mode"]').forEach(selectEl => {
-            const path = selectEl.dataset.path.replace('.mode', '');
-            const valueEl = document.querySelector(`input[data-path="${path}.value"]`);
-            const mode = selectEl.value;
-            const value = valueEl ? valueEl.value : null;
-            
-            const config = { mode };
-            if (mode === 'custom' && value) {
-                config.value = valueEl.type === 'number' ? parseInt(value, 10) : value;
-            }
-            setProp(ruleData, path, config);
-        });
-
-        // Collect DNS Header flags
-        // Simple flags (value only)
-        ruleEditor.querySelectorAll('input[data-path*="dns_header.flags"][data-path$=".value"]').forEach(el => {
+        // Universal collector for all fields with a data-path
+        ruleEditor.querySelectorAll('[data-path]').forEach(el => {
             const path = el.dataset.path;
-            // Exclude complex flags that have a .mode sibling
-            const modeEl = ruleEditor.querySelector(`[data-path="${path.replace('.value', '.mode')}"]`);
-            if (!modeEl && el.value) {
-                setProp(ruleData, el.dataset.path, parseInt(el.value, 10));
-            }
-        });
-
-        // Complex flags (mode + value)
-        ruleEditor.querySelectorAll('select[data-path*="dns_header.flags"][data-path$=".mode"]').forEach(selectEl => {
-            const path = selectEl.dataset.path.replace('.mode', '');
-            const valueEl = ruleEditor.querySelector(`input[data-path="${path}.value"]`);
-            const mode = selectEl.value;
-            const value = valueEl ? valueEl.value : null;
+            let value = el.type === 'checkbox' ? el.checked : el.value;
             
-            const config = { mode };
-            if (mode === 'custom' && value) {
-                config.value = parseInt(value, 10);
+            // Skip mode fields, they are handled by their corresponding value fields
+            if (path.endsWith('.mode')) return;
+
+            // Handle complex objects (like flags or l2/l3/l4 settings)
+            if (path.endsWith('.value')) {
+                const basePath = path.substring(0, path.lastIndexOf('.value'));
+                const modeEl = ruleEditor.querySelector(`[data-path="${basePath}.mode"]`);
+                if (modeEl) { // This is a complex object with mode/value
+                    const mode = modeEl.value;
+                    const obj = { mode };
+                    if (mode === 'custom' && value !== '') {
+                        const isNumber = el.type === 'number';
+                        obj.value = isNumber ? parseInt(value, 10) : value;
+                    }
+                    // Use a different setter to place the whole object
+                    const keys = basePath.split('.');
+                    let current = ruleData;
+                    for (let i = 0; i < keys.length - 1; i++) {
+                        current = current[keys[i]] = current[keys[i]] || {};
+                    }
+                    current[keys[keys.length - 1]] = obj;
+
+                } else { // This is a simple value-only object (e.g., simple response flags)
+                     if (value !== '') {
+                        const obj = { value: el.type === 'number' ? parseInt(value, 10) : value };
+                        // FIX: Use basePath for keys to set the object at the correct level (e.g., at 'qr'), not at 'qr.value'
+                        const keys = basePath.split('.');
+                        let current = ruleData;
+                        for (let i = 0; i < keys.length - 1; i++) {
+                            current = current[keys[i]] = current[keys[i]] || {};
+                        }
+                        current[keys[keys.length - 1]] = obj;
+                     }
+                }
+            } else {
+                // Handle simple path values
+                setProp(ruleData, path, value);
             }
-            setProp(ruleData, path, config);
         });
 
         // Collect RR sections
@@ -347,9 +329,23 @@ document.addEventListener('DOMContentLoaded', () => {
             const rrs = [];
             container.querySelectorAll('.rr-row').forEach(row => {
                 const rr = {};
-                row.querySelectorAll('input[data-key], select[data-key]').forEach(input => {
-                    setProp(rr, input.dataset.key, input.value, input);
-                });
+                // Custom collector for nested RR structure
+                const nameMode = row.querySelector('[data-key="name.mode"]').value;
+                const nameValue = row.querySelector('[data-key="name.value"]').value;
+                rr.name = { mode: nameMode };
+                if (nameMode === 'custom' && nameValue) {
+                    rr.name.value = nameValue;
+                }
+                
+                const type = row.querySelector('[data-key="type"]').value;
+                if (type) rr.type = parseInt(type, 10);
+
+                const ttl = row.querySelector('[data-key="ttl"]').value;
+                if (ttl) rr.ttl = parseInt(ttl, 10);
+
+                const rdata = row.querySelector('[data-key="rdata"]').value;
+                if (rdata) rr.rdata = rdata;
+
                 if (rr.type) { // Type is mandatory for an RR
                     rrs.push(rr);
                 }
@@ -357,9 +353,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return rrs;
         };
         
-        ruleData.response_action.dns_answers = collectRRSection(dnsAnswersContainer);
-        ruleData.response_action.dns_authority = collectRRSection(dnsAuthorityContainer);
-        ruleData.response_action.dns_additional = collectRRSection(dnsAdditionalContainer);
+        const responseAction = ruleData.response_action || {};
+        responseAction.dns_answers = collectRRSection(dnsAnswersContainer);
+        responseAction.dns_authority = collectRRSection(dnsAuthorityContainer);
+        responseAction.dns_additional = collectRRSection(dnsAdditionalContainer);
+        ruleData.response_action = responseAction;
 
         try {
             if (selectedRuleId) {

@@ -12,6 +12,30 @@
             overflow: hidden;
             transition: max-height 0.3s ease-out;
         }
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            width: 220px;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -110px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-white font-sans">
@@ -75,9 +99,9 @@
                 <!-- Trigger Condition -->
                 <div class="bg-gray-800 rounded p-4 space-y-2">
                     <h3 class="text-lg font-semibold">Trigger Condition (Query Packet)</h3>
-                    <!-- L7 DNS (Required) -->
+                    <!-- L5 DNS (Required) -->
                     <div class="border border-gray-600 rounded p-3">
-                        <h4 class="font-bold text-cyan-400">L7 - DNS</h4>
+                        <h4 class="font-bold text-cyan-400">L5 - DNS</h4>
                         <div class="grid grid-cols-2 gap-4 mt-2">
                             <div>
                                 <label class="text-sm">Query Name (Required)</label>
@@ -99,11 +123,11 @@
                                 <h5 class="col-span-4 font-semibold text-xs uppercase text-gray-400">Flags</h5>
                                 <div><label class="text-xs">QR</label><input type="number" data-path="trigger_condition.dns.flags.qr" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
                                 <div><label class="text-xs">Opcode</label><input type="number" data-path="trigger_condition.dns.flags.opcode" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
-                                <div><label class="text-xs">AA</label><input type="number" data-path="trigger_condition.dns.flags.aa" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
                                 <div><label class="text-xs">TC</label><input type="number" data-path="trigger_condition.dns.flags.tc" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
                                 <div><label class="text-xs">RD</label><input type="number" data-path="trigger_condition.dns.flags.rd" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
-                                <div><label class="text-xs">RA</label><input type="number" data-path="trigger_condition.dns.flags.ra" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
-                                <div><label class="text-xs">RCode</label><input type="number" data-path="trigger_condition.dns.flags.rcode" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                <div><label class="text-xs">Z</label><input type="number" data-path="trigger_condition.dns.flags.z" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                <div><label class="text-xs">AD</label><input type="number" data-path="trigger_condition.dns.flags.ad" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                <div><label class="text-xs">CD</label><input type="number" data-path="trigger_condition.dns.flags.cd" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
                                 <!-- Counts -->
                                 <h5 class="col-span-4 font-semibold text-xs uppercase text-gray-400 mt-2">Counts</h5>
                                 <div><label class="text-xs">QD Count</label><input type="number" data-path="trigger_condition.dns.qd_count" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
@@ -119,24 +143,24 @@
                         <details class="bg-gray-700 rounded">
                             <summary class="p-2 cursor-pointer font-semibold">Link Layer (L2)</summary>
                             <div class="p-3 border-t border-gray-600 grid grid-cols-2 gap-4">
-                                <div><label class="text-sm">Source MAC</label><input type="text" data-path="trigger_condition.l2_src_mac" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY"></div>
-                                <div><label class="text-sm">Destination MAC</label><input type="text" data-path="trigger_condition.l2_dst_mac" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY"></div>
+                                <div><label class="text-sm">Source MAC</label><input type="text" data-path="trigger_condition.l2.src_mac" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY"></div>
+                                <div><label class="text-sm">Destination MAC</label><input type="text" data-path="trigger_condition.l2.dst_mac" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY"></div>
                             </div>
                         </details>
                         <!-- L3 -->
                         <details class="bg-gray-700 rounded">
                             <summary class="p-2 cursor-pointer font-semibold">Network Layer (L3)</summary>
                             <div class="p-3 border-t border-gray-600 grid grid-cols-2 gap-4">
-                                <div><label class="text-sm">Source IP</label><input type="text" data-path="trigger_condition.l3_src_ip" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY"></div>
-                                <div><label class="text-sm">Destination IP</label><input type="text" data-path="trigger_condition.l3_dst_ip" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY"></div>
+                                <div><label class="text-sm">Source IP</label><input type="text" data-path="trigger_condition.l3.src_ip" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY"></div>
+                                <div><label class="text-sm">Destination IP</label><input type="text" data-path="trigger_condition.l3.dst_ip" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY"></div>
                             </div>
                         </details>
                         <!-- L4 -->
                         <details class="bg-gray-700 rounded">
                             <summary class="p-2 cursor-pointer font-semibold">Transport Layer (L4)</summary>
                             <div class="p-3 border-t border-gray-600 grid grid-cols-2 gap-4">
-                                <div><label class="text-sm">Source Port</label><input type="number" data-path="trigger_condition.l4_src_port" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY"></div>
-                                <div><label class="text-sm">Destination Port</label><input type="number" data-path="trigger_condition.l4_dst_port" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY"></div>
+                                <div><label class="text-sm">Source Port</label><input type="number" data-path="trigger_condition.l4.src_port" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY"></div>
+                                <div><label class="text-sm">Destination Port</label><input type="number" data-path="trigger_condition.l4.dst_port" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="ANY"></div>
                             </div>
                         </details>
                     </div>
@@ -145,7 +169,7 @@
                 <!-- Response Action -->
                 <div class="bg-gray-800 rounded p-4 space-y-2">
                     <h3 class="text-lg font-semibold">Response Action</h3>
-                    <!-- L7 DNS Records -->
+                    <!-- L5 DNS Records -->
                     <div class="border border-gray-600 rounded p-3 space-y-3">
                         <div>
                             <h4 class="font-bold text-cyan-400">Answers Section</h4>
@@ -169,15 +193,19 @@
                         <details class="bg-gray-700 rounded">
                             <summary class="p-2 cursor-pointer font-semibold">Response - DNS Header</summary>
                             <div class="p-3 border-t border-gray-600 grid grid-cols-3 gap-4">
-                                <div><label class="text-sm">QR (Response)</label><input type="number" data-path="response_action.dns_header.flags.qr.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="1"></div>
-                                <div><label class="text-sm">Opcode</label><input type="number" data-path="response_action.dns_header.flags.opcode.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0"></div>
-                                <div><label class="text-sm">AA (Authoritative)</label><input type="number" data-path="response_action.dns_header.flags.aa.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="1"></div>
-                                <div><label class="text-sm">TC (Truncated)</label><input type="number" data-path="response_action.dns_header.flags.tc.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0"></div>
-                                <div><label class="text-sm">RA (Recursion Avail)</label><input type="number" data-path="response_action.dns_header.flags.ra.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="1"></div>
-                                <div><label class="text-sm">RCode</label><input type="number" data-path="response_action.dns_header.flags.rcode.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0 (No Error)"></div>
-                                <div class="col-span-3 grid grid-cols-2 gap-2">
+                                <!-- Simple Value Flags -->
+                                <div><label class="text-sm flex items-center">QR <span class="tooltip ml-1">?<span class="tooltip-text">Response: 1 (Response). 必须是 1。</span></span></label><input type="number" data-path="response_action.dns_header.flags.qr.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="1"></div>
+                                <div><label class="text-sm flex items-center">Opcode <span class="tooltip ml-1">?<span class="tooltip-text">Opcode: 0 (Standard query).</span></span></label><input type="number" data-path="response_action.dns_header.flags.opcode.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0"></div>
+                                <div><label class="text-sm flex items-center">AA <span class="tooltip ml-1">?<span class="tooltip-text">Authoritative: 1 (是权威服务器), 0 (非权威)。</span></span></label><input type="number" data-path="response_action.dns_header.flags.aa.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0"></div>
+                                <div><label class="text-sm flex items-center">TC <span class="tooltip ml-1">?<span class="tooltip-text">Truncated: 1 (消息被截断), 0 (未截断)。</span></span></label><input type="number" data-path="response_action.dns_header.flags.tc.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0"></div>
+                                <div><label class="text-sm flex items-center">RA <span class="tooltip ml-1">?<span class="tooltip-text">Recursion available: 1 (服务器可用递归), 0 (不可用)。</span></span></label><input type="number" data-path="response_action.dns_header.flags.ra.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="1"></div>
+                                <div><label class="text-sm flex items-center">Z <span class="tooltip ml-1">?<span class="tooltip-text">Z: reserved (0). 必须是 0。</span></span></label><input type="number" data-path="response_action.dns_header.flags.z.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0"></div>
+                                <div><label class="text-sm flex items-center">RCode <span class="tooltip ml-1">?<span class="tooltip-text">Reply code: 0 (No error), 3 (NXDOMAIN), etc.</span></span></label><input type="number" data-path="response_action.dns_header.flags.rcode.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0"></div>
+                                
+                                <!-- Flags with Mode Selection -->
+                                <div class="col-span-3 grid grid-cols-2 gap-2 border-t border-gray-700 pt-3 mt-2">
                                     <div>
-                                        <label class="text-sm">RD (Recursion Desired)</label>
+                                        <label class="text-sm flex items-center">RD <span class="tooltip ml-1">?<span class="tooltip-text">Recursion desired: 'inherit' (继承Query包的rd位), 'custom' (自定义为0或1)。</span></span></label>
                                         <select data-path="response_action.dns_header.flags.rd.mode" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm">
                                             <option value="inherit">inherit</option>
                                             <option value="custom">custom</option>
@@ -190,7 +218,7 @@
                                 </div>
                                 <div class="col-span-3 grid grid-cols-2 gap-2">
                                     <div>
-                                        <label class="text-sm">AD (Auth Data)</label>
+                                        <label class="text-sm flex items-center">AD <span class="tooltip ml-1">?<span class="tooltip-text">Answer authenticated: 'inherit', 'custom'。</span></span></label>
                                         <select data-path="response_action.dns_header.flags.ad.mode" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm">
                                             <option value="inherit">inherit</option>
                                             <option value="custom">custom</option>
@@ -203,7 +231,7 @@
                                 </div>
                                 <div class="col-span-3 grid grid-cols-2 gap-2">
                                     <div>
-                                        <label class="text-sm">CD (Checking Disabled)</label>
+                                        <label class="text-sm flex items-center">CD <span class="tooltip ml-1">?<span class="tooltip-text">Non-authenticated data: 'inherit', 'custom'。</span></span></label>
                                         <select data-path="response_action.dns_header.flags.cd.mode" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm">
                                             <option value="inherit">inherit</option>
                                             <option value="custom">custom</option>
@@ -222,11 +250,11 @@
                             <div class="p-3 border-t border-gray-600 space-y-3">
                                 <!-- Src MAC -->
                                 <div>
-                                    <label class="text-sm">Source MAC</label>
+                                    <label class="text-sm flex items-center">Source MAC <span class="tooltip ml-1">?<span class="tooltip-text">源MAC地址：响应包的发送方MAC。'auto' (自动获取本机MAC), 'inherit' (继承Query包的Dst MAC), 'custom' (自定义)。</span></span></label>
                                     <div class="flex space-x-2 mt-1">
                                         <select data-path="response_action.l2.src_mac.mode" class="w-1/2 bg-gray-600 rounded p-1 text-sm">
-                                            <option value="auto">auto (本机MAC)</option>
-                                            <option value="inherit">inherit (Query Dst)</option>
+                                            <option value="auto">auto</option>
+                                            <option value="inherit">inherit</option>
                                             <option value="custom">custom</option>
                                         </select>
                                         <input type="text" data-path="response_action.l2.src_mac.value" class="w-1/2 bg-gray-600 rounded p-1 text-sm" placeholder="Custom MAC">
@@ -234,10 +262,10 @@
                                 </div>
                                 <!-- Dst MAC -->
                                 <div>
-                                    <label class="text-sm">Destination MAC</label>
+                                    <label class="text-sm flex items-center">Destination MAC <span class="tooltip ml-1">?<span class="tooltip-text">目的MAC地址：响应包的接收方MAC。'inherit' (继承Query包的Src MAC), 'custom'。推荐 'inherit'。</span></span></label>
                                     <div class="flex space-x-2 mt-1">
                                         <select data-path="response_action.l2.dst_mac.mode" class="w-1/2 bg-gray-600 rounded p-1 text-sm">
-                                            <option value="inherit">inherit (Query Src)</option>
+                                            <option value="inherit">inherit</option>
                                             <option value="custom">custom</option>
                                         </select>
                                         <input type="text" data-path="response_action.l2.dst_mac.value" class="w-1/2 bg-gray-600 rounded p-1 text-sm" placeholder="Custom MAC">
@@ -251,11 +279,11 @@
                             <div class="p-3 border-t border-gray-600 space-y-3">
                                 <!-- Src IP -->
                                 <div>
-                                    <label class="text-sm">Source IP</label>
+                                    <label class="text-sm flex items-center">Source IP <span class="tooltip ml-1">?<span class="tooltip-text">源IP地址：响应包的发送方IP。'auto' (自动获取本机IP), 'inherit' (继承Query包的Dst IP), 'custom'。推荐 'inherit'。</span></span></label>
                                     <div class="flex space-x-2 mt-1">
                                         <select data-path="response_action.l3.src_ip.mode" class="w-1/2 bg-gray-600 rounded p-1 text-sm">
-                                            <option value="inherit">inherit (Query Dst)</option>
-                                            <option value="auto">auto (本机IP)</option>
+                                            <option value="inherit">inherit</option>
+                                            <option value="auto">auto</option>
                                             <option value="custom">custom</option>
                                         </select>
                                         <input type="text" data-path="response_action.l3.src_ip.value" class="w-1/2 bg-gray-600 rounded p-1 text-sm" placeholder="Custom IP">
@@ -263,10 +291,10 @@
                                 </div>
                                 <!-- Dst IP -->
                                 <div>
-                                    <label class="text-sm">Destination IP</label>
+                                    <label class="text-sm flex items-center">Destination IP <span class="tooltip ml-1">?<span class="tooltip-text">目的IP地址：响应包的接收方IP。'inherit' (继承Query包的Src IP), 'custom'。必须 'inherit'。</span></span></label>
                                     <div class="flex space-x-2 mt-1">
                                         <select data-path="response_action.l3.dst_ip.mode" class="w-1/2 bg-gray-600 rounded p-1 text-sm">
-                                            <option value="inherit">inherit (Query Src)</option>
+                                            <option value="inherit">inherit</option>
                                             <option value="custom">custom</option>
                                         </select>
                                         <input type="text" data-path="response_action.l3.dst_ip.value" class="w-1/2 bg-gray-600 rounded p-1 text-sm" placeholder="Custom IP">
@@ -280,10 +308,10 @@
                             <div class="p-3 border-t border-gray-600 space-y-3">
                                 <!-- Src Port -->
                                 <div>
-                                    <label class="text-sm">Source Port</label>
+                                    <label class="text-sm flex items-center">Source Port <span class="tooltip ml-1">?<span class="tooltip-text">源端口：响应包的发送方端口。'inherit' (继承Query包的Dst Port), 'custom'。推荐 'inherit' (通常是53)。</span></span></label>
                                     <div class="flex space-x-2 mt-1">
                                         <select data-path="response_action.l4.src_port.mode" class="w-1/2 bg-gray-600 rounded p-1 text-sm">
-                                            <option value="inherit">inherit (Query Dst)</option>
+                                            <option value="inherit">inherit</option>
                                             <option value="custom">custom</option>
                                         </select>
                                         <input type="number" data-path="response_action.l4.src_port.value" class="w-1/2 bg-gray-600 rounded p-1 text-sm" placeholder="Custom Port">
@@ -291,10 +319,10 @@
                                 </div>
                                 <!-- Dst Port -->
                                 <div>
-                                    <label class="text-sm">Destination Port</label>
+                                    <label class="text-sm flex items-center">Destination Port <span class="tooltip ml-1">?<span class="tooltip-text">目的端口：响应包的接收方端口。'inherit' (继承Query包的Src Port), 'custom'。必须 'inherit'。</span></span></label>
                                     <div class="flex space-x-2 mt-1">
                                         <select data-path="response_action.l4.dst_port.mode" class="w-1/2 bg-gray-600 rounded p-1 text-sm">
-                                            <option value="inherit">inherit (Query Src)</option>
+                                            <option value="inherit">inherit</option>
                                             <option value="custom">custom</option>
                                         </select>
                                         <input type="number" data-path="response_action.l4.dst_port.value" class="w-1/2 bg-gray-600 rounded p-1 text-sm" placeholder="Custom Port">

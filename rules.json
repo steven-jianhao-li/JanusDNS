@@ -7,13 +7,18 @@
     "trigger_condition": {
       "dns": {
         "qname": "baidu.com",
-        "qtype": 1,
-        "flags": {}
+        "qtype": 1
       }
     },
     "response_action": {
       "dns_header": {
         "flags": {
+          "aa": {
+            "value": 0
+          },
+          "rcode": {
+            "value": 3
+          },
           "rd": {
             "mode": "inherit"
           },
@@ -22,9 +27,6 @@
           },
           "cd": {
             "mode": "inherit"
-          },
-          "aa": {
-            "value": 0
           }
         }
       },

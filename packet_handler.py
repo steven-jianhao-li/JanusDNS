@@ -185,25 +185,37 @@ def generate_response(query_packet, rule):
     ns_section = build_rr_section(dns_authority_conf, query_packet)
     ar_section = build_rr_section(dns_additional_conf, query_packet)
 
-    # Resolve 'rd' flag separately due to its 'inherit' mode
-    rd_flag_conf = flags_conf.get('rd', {})
-    rd_flag = get_response_value(rd_flag_conf, query_packet[DNS].rd, query_packet[DNS].rd)
+    # --- Resolve DNS Flags based on the new, detailed schema from Readme.md ---
+    # Flags with simple 'value'
+    qr_flag = get_flag_value(flags_conf, 'qr', 1)
+    opcode_flag = get_flag_value(flags_conf, 'opcode', 0)
+    aa_flag = get_flag_value(flags_conf, 'aa', 0)
+    tc_flag = get_flag_value(flags_conf, 'tc', 0)
+    ra_flag = get_flag_value(flags_conf, 'ra', 1)
+    z_flag = get_flag_value(flags_conf, 'z', 0)
+    rcode_flag = get_flag_value(flags_conf, 'rcode', 0)
+
+    # Flags that support 'inherit' mode
+    rd_flag = get_response_value(flags_conf.get('rd', {}), query_packet[DNS].rd)
+    ad_flag = get_response_value(flags_conf.get('ad', {}), query_packet[DNS].ad)
+    cd_flag = get_response_value(flags_conf.get('cd', {}), query_packet[DNS].cd)
 
     response_dns = DNS(
         # Per Readme, Transaction ID and Question must be inherited
         id=query_packet[DNS].id,
         qd=query_packet[DNS].qd,
         
-        # Set flags robustly from config using the helper function
-        qr=get_flag_value(flags_conf, 'qr', 1),
-        opcode=get_flag_value(flags_conf, 'opcode', 0),
-        aa=get_flag_value(flags_conf, 'aa', 1),
-        tc=get_flag_value(flags_conf, 'tc', 0),
+        # Assign all resolved flags according to the new schema
+        qr=qr_flag,
+        opcode=opcode_flag,
+        aa=aa_flag,
+        tc=tc_flag,
         rd=rd_flag,
-        ra=get_flag_value(flags_conf, 'ra', 1),
-        ad=get_flag_value(flags_conf, 'ad', 0),
-        cd=get_flag_value(flags_conf, 'cd', 0),
-        rcode=get_flag_value(flags_conf, 'rcode', 0),
+        ra=ra_flag,
+        z=z_flag,
+        ad=ad_flag,
+        cd=cd_flag,
+        rcode=rcode_flag,
         
         # Manually set counts to ensure correctness, overriding Scapy's auto-calculation
         ancount=len(dns_answers_conf),

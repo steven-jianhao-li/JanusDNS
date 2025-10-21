@@ -76,7 +76,7 @@ def match_rule(packet, rule):
         if not check(l4_cond.get('src_port'), udp_layer.sport): return False
         if not check(l4_cond.get('dst_port'), udp_layer.dport): return False
 
-    # --- L7 Matching (DNS) ---
+    # --- L5 Matching (DNS) ---
     dns_cond = condition.get('dns', {})
     if not dns_cond: # DNS condition is mandatory for a DNS rule
         return False
@@ -97,18 +97,18 @@ def match_rule(packet, rule):
     if not check(dns_cond.get('ns_count'), dns_layer.nscount): return False
     if not check(dns_cond.get('ar_count'), dns_layer.arcount): return False
 
-    # Flags
+    # Flags - Adhering to the new JSON schema from Readme.md
     flags_cond = dns_cond.get('flags', {})
     if flags_cond:
+        # Standard query flags
         if not check(flags_cond.get('qr'), dns_layer.qr): return False
         if not check(flags_cond.get('opcode'), dns_layer.opcode): return False
-        if not check(flags_cond.get('aa'), dns_layer.aa): return False
         if not check(flags_cond.get('tc'), dns_layer.tc): return False
         if not check(flags_cond.get('rd'), dns_layer.rd): return False
-        if not check(flags_cond.get('ra'), dns_layer.ra): return False
+        if not check(flags_cond.get('z'), dns_layer.z): return False
+        # DNSSEC flags
         if not check(flags_cond.get('ad'), dns_layer.ad): return False
         if not check(flags_cond.get('cd'), dns_layer.cd): return False
-        if not check(flags_cond.get('rcode'), dns_layer.rcode): return False
 
     print(f"[*] Packet matched rule: {rule.get('name', rule.get('rule_id'))}")
     return True
