@@ -133,15 +133,13 @@
     
       "transaction_id": "integer | null",
       "flags": {
-        "opcode": "integer | null",
         "qr": "integer | null",
-        "aa": "integer | null",
+        "opcode": "integer | null",
         "tc": "integer | null",
         "rd": "integer | null",
-        "ra": "integer | null",
+        "z": "integer | null",
         "ad": "integer | null",
-        "cd": "integer | null",
-        "rcode": "integer | null"
+        "cd": "integer | null"
       },
     
       "qd_count": "integer | null",
@@ -209,16 +207,17 @@
         "description": "Questions部分：必须继承Query包的Questions部分，以告知客户端这是对哪个问题的回答。"
       },
     
-      "flags": { 
-        "qr": { "value": "integer", "default": 1, "description": "问答标志: 必须是 1 (Response)。" },
-        "opcode": { "value": "integer", "default": 0, "description": "操作码: 必须是 0 (Standard Query)。" },
-        "aa": { "value": "integer", "default": 1, "description": "权威标志: 1 (是权威服务器), 0 (非权威)。" },
-        "tc": { "value": "integer", "default": 0, "description": "截断标志: 通常为 0。" },
-        "rd": { "mode": "string", "value": "integer | null", "default": "inherit", "description": "递归请求: 'inherit' (继承Query包的rd位), 'custom' (自定义为0或1)。" },
-        "ra": { "value": "integer", "default": 1, "description": "递归可用: 1 (服务器可用递归), 0 (不可用)。" },
-        "ad": { "mode": "string", "value": "integer | null", "default": "inherit", "description": "验证数据(DNSSEC): 'inherit', 'custom'。" },
-        "cd": { "mode": "string", "value": "integer | null", "default": "inherit", "description": "检查禁用(DNSSEC): 'inherit', 'custom'。" },
-        "rcode": { "value": "integer", "default": 0, "description": "响应码: 0 (No Error), 3 (NXDOMAIN), etc." }
+      "flags": {
+        "qr": { "value": "integer", "default": 1, "description": "Response: 1 (Response)。必须是 1。" },
+        "opcode": { "value": "integer", "default": 0, "description": "Opcode: 0 (Standard query)。" },
+        "aa": { "value": "integer", "default": 0, "description": "Authoritative: 1 (是权威服务器), 0 (非权威)。" },
+        "tc": { "value": "integer", "default": 0, "description": "Truncated: 1 (消息被截断), 0 (未截断)。" },
+        "rd": { "mode": "string", "value": "integer | null", "default": "inherit", "description": "Recursion desired: 'inherit' (继承Query包的rd位), 'custom' (自定义为0或1)。" },
+        "ra": { "value": "integer", "default": 1, "description": "Recursion available: 1 (服务器可用递归), 0 (不可用)。" },
+        "z": { "value": "integer", "default": 0, "description": "Z: reserved (0)。必须是 0。" },
+        "ad": { "mode": "string", "value": "integer | null", "default": "inherit", "description": "Answer authenticated: 'inherit', 'custom'。" },
+        "cd": { "mode": "string", "value": "integer | null", "default": "inherit", "description": "Non-authenticated data: 'inherit', 'custom'。" },
+        "rcode": { "value": "integer", "default": 0, "description": "Reply code: 0 (No error), 3 (NXDOMAIN), etc." }
       }
     },
   
