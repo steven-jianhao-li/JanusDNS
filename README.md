@@ -69,7 +69,7 @@ project/
 
 1.  **Clone the Repository**:
     ```bash
-    git clone https://github.com/your-username/JanusDNS.git
+    git clone https://github.com/steven-jianhao-li/JanusDNS.git
     cd JanusDNS
     ```
 
@@ -159,3 +159,4 @@ The core of JanusDNS is its rule engine, which uses a flexible JSON structure. T
 
 
 </details>
+
