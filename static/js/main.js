@@ -270,7 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <input type="text" data-key="name.value" class="w-full bg-gray-600 rounded p-1 text-sm mt-1" placeholder="e.g., ns1.example.com" value="${nameValue}" ${nameMode !== 'custom' ? 'disabled' : ''}>
             </div>
             <div class="col-span-1">
-                <label class="text-xs text-gray-400">Type</label>
+                <label class="text-xs text-gray-400" data-i18n-key="rrTypeLabel">Type</label><i class="fas fa-info-circle text-gray-400 ml-1 cursor-pointer" data-tooltip-type="list" data-tooltip-key="DnsType"></i>
                 <input type="number" data-key="type" class="w-full bg-gray-600 rounded p-1 text-sm mt-1" placeholder="1" value="${type}">
             </div>
             <div class="col-span-1">
@@ -527,6 +527,56 @@ document.addEventListener('DOMContentLoaded', () => {
     dnsAnswersContainer.addEventListener('click', handleRemoveRR);
     dnsAuthorityContainer.addEventListener('click', handleRemoveRR);
     dnsAdditionalContainer.addEventListener('click', handleRemoveRR);
+
+    // --- Tooltip Logic ---
+    function showTooltip(element) {
+        const type = element.dataset.tooltipType;
+        const key = element.dataset.tooltipKey;
+        
+        const tooltip = document.createElement('div');
+        tooltip.className = 'absolute z-10 w-auto max-w-xs p-2 my-2 text-sm text-white bg-gray-800 rounded-lg shadow-lg';
+        tooltip.id = 'dynamic-tooltip';
+
+        let content = '';
+        if (type === 'list') {
+            content = `<h3 class="font-bold">${translations[`tooltip${key}Title`]}</h3><ul class="list-disc list-inside">`;
+            for (let i = 1; i <= 50; i++) { // Check for up to 50 types
+                const transKey = `tooltip${key}${i}`;
+                if (translations[transKey]) {
+                    content += `<li>${translations[transKey]}</li>`;
+                }
+            }
+            content += '</ul>';
+        } else { // 'text'
+            content = translations[`tooltip${key}`] || 'No information available.';
+        }
+        
+        tooltip.innerHTML = content;
+        document.body.appendChild(tooltip);
+
+        const rect = element.getBoundingClientRect();
+        tooltip.style.left = `${rect.left + window.scrollX}px`;
+        tooltip.style.top = `${rect.bottom + window.scrollY + 5}px`;
+    }
+
+    function hideTooltip() {
+        const tooltip = document.getElementById('dynamic-tooltip');
+        if (tooltip) {
+            tooltip.remove();
+        }
+    }
+
+    document.body.addEventListener('mouseover', (e) => {
+        if (e.target.matches('[data-tooltip-key]')) {
+            showTooltip(e.target);
+        }
+    });
+
+    document.body.addEventListener('mouseout', (e) => {
+        if (e.target.matches('[data-tooltip-key]')) {
+            hideTooltip();
+        }
+    });
 
     ruleEditor.addEventListener('change', (e) => {
         if (e.target.matches('select[data-path$=".mode"]')) {

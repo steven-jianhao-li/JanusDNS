@@ -124,7 +124,7 @@
                                         <input type="text" data-path="trigger_condition.dns.qname" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="baidu.com">
                                     </div>
                                     <div>
-                                        <label class="text-sm">Query Type (Required)</label>
+                                        <label class="text-sm" data-i18n-key="queryTypeLabel">Query Type (Required)</label><i class="fas fa-info-circle text-gray-400 ml-1 cursor-pointer" data-tooltip-type="list" data-tooltip-key="DnsType"></i>
                                         <input type="number" data-path="trigger_condition.dns.qtype" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="1 (A)">
                                     </div>
                                     <div>
@@ -136,13 +136,13 @@
                                     <summary class="p-2 cursor-pointer font-semibold text-sm">DNS Header & Counts</summary>
                                     <div class="p-3 border-t border-gray-700 grid grid-cols-4 gap-x-4 gap-y-2">
                                         <h5 class="col-span-4 font-semibold text-xs uppercase text-gray-400">Flags</h5>
-                                        <div><label class="text-xs">QR</label><input type="number" data-path="trigger_condition.dns.flags.qr" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
-                                        <div><label class="text-xs">Opcode</label><input type="number" data-path="trigger_condition.dns.flags.opcode" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
-                                        <div><label class="text-xs">TC</label><input type="number" data-path="trigger_condition.dns.flags.tc" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
-                                        <div><label class="text-xs">RD</label><input type="number" data-path="trigger_condition.dns.flags.rd" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
-                                        <div><label class="text-xs">Z</label><input type="number" data-path="trigger_condition.dns.flags.z" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
-                                        <div><label class="text-xs">AD</label><input type="number" data-path="trigger_condition.dns.flags.ad" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
-                                        <div><label class="text-xs">CD</label><input type="number" data-path="trigger_condition.dns.flags.cd" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                        <div><label class="text-xs">QR</label><i class="fas fa-info-circle text-gray-400 ml-1 cursor-pointer" data-tooltip-type="text" data-tooltip-key="FlagQR"></i><input type="number" data-path="trigger_condition.dns.flags.qr" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                        <div><label class="text-xs">Opcode</label><i class="fas fa-info-circle text-gray-400 ml-1 cursor-pointer" data-tooltip-type="text" data-tooltip-key="FlagOpcode"></i><input type="number" data-path="trigger_condition.dns.flags.opcode" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                        <div><label class="text-xs">TC</label><i class="fas fa-info-circle text-gray-400 ml-1 cursor-pointer" data-tooltip-type="text" data-tooltip-key="FlagTC"></i><input type="number" data-path="trigger_condition.dns.flags.tc" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                        <div><label class="text-xs">RD</label><i class="fas fa-info-circle text-gray-400 ml-1 cursor-pointer" data-tooltip-type="text" data-tooltip-key="FlagRD"></i><input type="number" data-path="trigger_condition.dns.flags.rd" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                        <div><label class="text-xs">Z</label><i class="fas fa-info-circle text-gray-400 ml-1 cursor-pointer" data-tooltip-type="text" data-tooltip-key="FlagZ"></i><input type="number" data-path="trigger_condition.dns.flags.z" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                        <div><label class="text-xs">AD</label><i class="fas fa-info-circle text-gray-400 ml-1 cursor-pointer" data-tooltip-type="text" data-tooltip-key="FlagAD"></i><input type="number" data-path="trigger_condition.dns.flags.ad" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
+                                        <div><label class="text-xs">CD</label><i class="fas fa-info-circle text-gray-400 ml-1 cursor-pointer" data-tooltip-type="text" data-tooltip-key="FlagCD"></i><input type="number" data-path="trigger_condition.dns.flags.cd" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
                                         <h5 class="col-span-4 font-semibold text-xs uppercase text-gray-400 mt-2">Counts</h5>
                                         <div><label class="text-xs">QD Count</label><input type="number" data-path="trigger_condition.dns.qd_count" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
                                         <div><label class="text-xs">AN Count</label><input type="number" data-path="trigger_condition.dns.an_count" class="w-full bg-gray-600 rounded p-1 mt-1 text-xs" placeholder="ANY"></div>
@@ -207,30 +207,52 @@
                                 <details class="bg-gray-800 rounded">
                                     <summary class="p-2 cursor-pointer font-semibold text-sm">DNS Header Flags</summary>
                                     <div class="p-3 border-t border-gray-700 grid grid-cols-3 gap-4">
-                                        <div><label class="text-sm flex items-center">QR <span class="tooltip ml-1">&#9432;<span class="tooltip-text">Response: 1 (Response). 必须是 1。</span></span></label><input type="number" data-path="response_action.dns_header.flags.qr.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="1"></div>
-                                        <div><label class="text-sm flex items-center">Opcode <span class="tooltip ml-1">&#9432;<span class="tooltip-text">Opcode: 0 (Standard query).</span></span></label><input type="number" data-path="response_action.dns_header.flags.opcode.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0"></div>
-                                        <div><label class="text-sm flex items-center">AA <span class="tooltip ml-1">&#9432;<span class="tooltip-text">Authoritative: 1 (是权威服务器), 0 (非权威)。</span></span></label><input type="number" data-path="response_action.dns_header.flags.aa.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0"></div>
-                                        <div><label class="text-sm flex items-center">TC <span class="tooltip ml-1">&#9432;<span class="tooltip-text">Truncated: 1 (消息被截断), 0 (未截断)。</span></span></label><input type="number" data-path="response_action.dns_header.flags.tc.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0"></div>
-                                        <div><label class="text-sm flex items-center">RA <span class="tooltip ml-1">&#9432;<span class="tooltip-text">Recursion available: 1 (服务器可用递归), 0 (不可用)。</span></span></label><input type="number" data-path="response_action.dns_header.flags.ra.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="1"></div>
-                                        <div><label class="text-sm flex items-center">Z <span class="tooltip ml-1">&#9432;<span class="tooltip-text">Z: reserved (0). 必须是 0。</span></span></label><input type="number" data-path="response_action.dns_header.flags.z.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0"></div>
-                                        <div><label class="text-sm flex items-center">RCode <span class="tooltip ml-1">&#9432;<span class="tooltip-text">Reply code: 0 (No error), 3 (NXDOMAIN), etc.</span></span></label><input type="number" data-path="response_action.dns_header.flags.rcode.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0"></div>
+                                        <div>
+                                            <label class="text-sm flex items-center">QR<i class="fas fa-info-circle text-gray-400 ml-1 cursor-pointer" data-tooltip-type="text" data-tooltip-key="FlagQR"></i></label>
+                                            <input type="number" data-path="response_action.dns_header.flags.qr.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="1">
+                                        </div>
+                                        <div>
+                                            <label class="text-sm flex items-center">Opcode<i class="fas fa-info-circle text-gray-400 ml-1 cursor-pointer" data-tooltip-type="text" data-tooltip-key="FlagOpcode"></i></label>
+                                            <input type="number" data-path="response_action.dns_header.flags.opcode.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0">
+                                        </div>
+                                        <div>
+                                            <label class="text-sm flex items-center">AA<i class="fas fa-info-circle text-gray-400 ml-1 cursor-pointer" data-tooltip-type="text" data-tooltip-key="FlagAA"></i></label>
+                                            <input type="number" data-path="response_action.dns_header.flags.aa.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0">
+                                        </div>
+                                        <div>
+                                            <label class="text-sm flex items-center">TC<i class="fas fa-info-circle text-gray-400 ml-1 cursor-pointer" data-tooltip-type="text" data-tooltip-key="FlagTC"></i></label>
+                                            <input type="number" data-path="response_action.dns_header.flags.tc.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0">
+                                        </div>
+                                        <div>
+                                            <label class="text-sm flex items-center">RA<i class="fas fa-info-circle text-gray-400 ml-1 cursor-pointer" data-tooltip-type="text" data-tooltip-key="FlagRA"></i></label>
+                                            <input type="number" data-path="response_action.dns_header.flags.ra.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="1">
+                                        </div>
+                                        <div>
+                                            <label class="text-sm flex items-center">Z<i class="fas fa-info-circle text-gray-400 ml-1 cursor-pointer" data-tooltip-type="text" data-tooltip-key="FlagZ"></i></label>
+                                            <input type="number" data-path="response_action.dns_header.flags.z.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0">
+                                        </div>
+                                        <div>
+                                            <label class="text-sm flex items-center">RCode<i class="fas fa-info-circle text-gray-400 ml-1 cursor-pointer" data-tooltip-type="text" data-tooltip-key="FlagRCode"></i></label>
+                                            <input type="number" data-path="response_action.dns_header.flags.rcode.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0">
+                                        </div>
+                                        
                                         <div class="col-span-3 grid grid-cols-2 gap-2 border-t border-gray-700 pt-3 mt-2">
                                             <div>
-                                                <label class="text-sm flex items-center">RD <span class="tooltip ml-1">&#9432;<span class="tooltip-text">Recursion desired: 'inherit' (继承Query包的rd位), 'custom' (自定义为0或1)。</span></span></label>
+                                                <label class="text-sm flex items-center">RD<i class="fas fa-info-circle text-gray-400 ml-1 cursor-pointer" data-tooltip-type="text" data-tooltip-key="ModeRD"></i></label>
                                                 <select data-path="response_action.dns_header.flags.rd.mode" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm"><option value="inherit">inherit</option><option value="custom">custom</option></select>
                                             </div>
                                             <div><label class="text-sm">&nbsp;</label><input type="number" data-path="response_action.dns_header.flags.rd.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0 or 1"></div>
                                         </div>
                                         <div class="col-span-3 grid grid-cols-2 gap-2">
                                             <div>
-                                                <label class="text-sm flex items-center">AD <span class="tooltip ml-1">&#9432;<span class="tooltip-text">Answer authenticated: 'inherit', 'custom'。</span></span></label>
+                                                <label class="text-sm flex items-center">AD<i class="fas fa-info-circle text-gray-400 ml-1 cursor-pointer" data-tooltip-type="text" data-tooltip-key="ModeAD"></i></label>
                                                 <select data-path="response_action.dns_header.flags.ad.mode" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm"><option value="inherit">inherit</option><option value="custom">custom</option></select>
                                             </div>
                                             <div><label class="text-sm">&nbsp;</label><input type="number" data-path="response_action.dns_header.flags.ad.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0 or 1"></div>
                                         </div>
                                         <div class="col-span-3 grid grid-cols-2 gap-2">
                                             <div>
-                                                <label class="text-sm flex items-center">CD <span class="tooltip ml-1">&#9432;<span class="tooltip-text">Non-authenticated data: 'inherit', 'custom'。</span></span></label>
+                                                <label class="text-sm flex items-center">CD<i class="fas fa-info-circle text-gray-400 ml-1 cursor-pointer" data-tooltip-type="text" data-tooltip-key="ModeCD"></i></label>
                                                 <select data-path="response_action.dns_header.flags.cd.mode" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm"><option value="inherit">inherit</option><option value="custom">custom</option></select>
                                             </div>
                                             <div><label class="text-sm">&nbsp;</label><input type="number" data-path="response_action.dns_header.flags.cd.value" class="w-full bg-gray-600 rounded p-1 mt-1 text-sm" placeholder="0 or 1"></div>
