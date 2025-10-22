@@ -45,6 +45,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalDownloadLink = document.getElementById('modal-download-pcap');
     const toast = document.getElementById('toast');
     const toastMessage = document.getElementById('toast-message');
+    const toastCopyBtn = document.getElementById('toast-copy-btn');
+    const toastCloseBtn = document.getElementById('toast-close-btn');
     const logsPerPageSelect = document.getElementById('logs-per-page');
     const logPageJumpInput = document.getElementById('log-page-jump');
     const logPageJumpBtn = document.getElementById('log-page-jump-btn');
@@ -106,9 +108,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // --- UI Functions ---
+    let toastTimeout;
+
+    function hideToast() {
+        toast.style.transform = 'translateX(-120%)';
+        clearTimeout(toastTimeout);
+    }
+
     function showToast(message, isError = false) {
+        clearTimeout(toastTimeout); // Clear any existing timer
+
         toastMessage.textContent = message;
-        toast.classList.remove('bg-blue-500', 'bg-red-500', 'translate-x-full');
+        toast.classList.remove('bg-blue-500', 'bg-red-500');
         
         if (isError) {
             toast.classList.add('bg-red-500');
@@ -117,13 +128,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Show the toast
-        toast.classList.remove('translate-x-full');
         toast.style.transform = 'translateX(0)';
 
-        // Hide it after 3 seconds
-        setTimeout(() => {
-            toast.style.transform = 'translateX(120%)';
-        }, 3000);
+        // Hide it after 5 seconds
+        toastTimeout = setTimeout(hideToast, 5000);
     }
 
     // --- API Functions ---
@@ -165,19 +173,36 @@ document.addEventListener('DOMContentLoaded', () => {
             const ruleEl = document.createElement('div');
             ruleEl.className = `rule-item p-2 rounded cursor-pointer hover:bg-gray-600 flex justify-between items-center ${rule.rule_id === selectedRuleId ? 'bg-blue-800' : ''}`;
             ruleEl.dataset.ruleId = rule.rule_id;
-            
+
             const nameSpan = document.createElement('span');
-            nameSpan.className = 'rule-name-display';
+            nameSpan.className = 'rule-name-display flex-grow'; // flex-grow to take available space
             nameSpan.textContent = rule.name || (translations.untitledRule || 'Untitled Rule');
-            
+
+            const controlsDiv = document.createElement('div');
+            controlsDiv.className = 'rule-controls flex items-center';
+
+            const copyBtn = document.createElement('button');
+            copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
+            copyBtn.className = 'copy-rule-btn text-gray-400 hover:text-white mr-2';
+            copyBtn.dataset.ruleId = rule.rule_id;
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+            deleteBtn.className = 'delete-rule-btn text-gray-400 hover:text-red-500 mr-2';
+            deleteBtn.dataset.ruleId = rule.rule_id;
+
             const enabledCheckbox = document.createElement('input');
             enabledCheckbox.type = 'checkbox';
             enabledCheckbox.checked = rule.is_enabled;
-            enabledCheckbox.className = 'rule-enabled-toggle'; // Allow pointer events
-            enabledCheckbox.dataset.ruleId = rule.rule_id; // Add rule-id for direct access
+            enabledCheckbox.className = 'rule-enabled-toggle';
+            enabledCheckbox.dataset.ruleId = rule.rule_id;
+
+            controlsDiv.appendChild(copyBtn);
+            controlsDiv.appendChild(deleteBtn);
+            controlsDiv.appendChild(enabledCheckbox);
 
             ruleEl.appendChild(nameSpan);
-            ruleEl.appendChild(enabledCheckbox);
+            ruleEl.appendChild(controlsDiv);
             rulesListContainer.appendChild(ruleEl);
         });
     }
@@ -327,20 +352,67 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    toastCloseBtn.addEventListener('click', hideToast);
+
+    toastCopyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(toastMessage.textContent).then(() => {
+            showToast('Copied to clipboard!');
+        }).catch(err => {
+            showToast('Failed to copy text.', true);
+        });
+    });
+
     rulesListContainer.addEventListener('click', async (e) => {
         const ruleItem = e.target.closest('.rule-item');
+        if (!ruleItem) return;
+
+        const ruleId = ruleItem.dataset.ruleId;
+        const rule = currentRules.find(r => r.rule_id === ruleId);
+
+        // Handle delete button click
+        if (e.target.closest('.delete-rule-btn')) {
+            if (confirm(`Are you sure you want to delete the rule "${rule.name}"?`)) {
+                try {
+                    await api.delete(`/api/rules/${ruleId}`);
+                    showToast(`Rule "${rule.name}" deleted.`);
+                    if (selectedRuleId === ruleId) {
+                        selectedRuleId = null;
+                        clearEditor();
+                    }
+                    fetchAndRenderRules();
+                } catch (error) {
+                    console.error("Failed to delete rule:", error);
+                    showToast(`Error deleting rule: ${error.message}`, true);
+                }
+            }
+            return;
+        }
+
+        // Handle copy button click
+        if (e.target.closest('.copy-rule-btn')) {
+            try {
+                const newRuleData = { ...rule };
+                delete newRuleData.rule_id; // Remove id to create a new one
+                newRuleData.name = `${rule.name}-bak`;
+                const newRule = await api.post('/api/rules', newRuleData);
+                showToast(`Rule "${rule.name}" duplicated as "${newRule.name}".`);
+                selectedRuleId = newRule.rule_id; // Select the new rule
+                fetchAndRenderRules();
+            } catch (error) {
+                console.error("Failed to duplicate rule:", error);
+                showToast(`Error duplicating rule: ${error.message}`, true);
+            }
+            return;
+        }
         
         // Handle clicks on the checkbox for enabling/disabling rules
         if (e.target.classList.contains('rule-enabled-toggle')) {
             const checkbox = e.target;
-            const ruleId = checkbox.dataset.ruleId;
-            const rule = currentRules.find(r => r.rule_id === ruleId);
             if (rule) {
                 rule.is_enabled = checkbox.checked;
                 try {
                     await api.put(`/api/rules/${ruleId}`, rule);
                     showToast(`Rule '${rule.name}' ${rule.is_enabled ? 'enabled' : 'disabled'}.`);
-                    // If the sniffer is running, restart it to apply the change
                     if (statusText.textContent === 'Running') {
                         await api.post('/api/control/stop');
                         await api.post('/api/control/start');
@@ -349,18 +421,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 } catch (error) {
                     console.error("Failed to update rule state:", error);
                     showToast(`Error updating rule: ${error.message}`, true);
-                    // Revert checkbox on failure
                     checkbox.checked = !checkbox.checked;
                 }
             }
-            return; // Stop further processing to prevent selecting the rule
+            return;
         }
 
         // Handle clicks on the rule item itself to select it
-        if (ruleItem) {
-            selectedRuleId = ruleItem.dataset.ruleId;
-            fetchAndRenderRules();
-        }
+        selectedRuleId = ruleId;
+        fetchAndRenderRules();
+        // Switch to editor tab and scroll to top
+        tabEditor.click();
+        document.querySelector('.w-2\/3 .overflow-y-auto').scrollTop = 0;
     });
 
     newRuleBtn.addEventListener('click', () => {
@@ -369,11 +441,12 @@ document.addEventListener('DOMContentLoaded', () => {
         clearEditor();
     });
 
-    saveRuleBtn.addEventListener('click', async () => {
+    const handleSaveRule = async () => {
         const isSnifferRunning = statusText.textContent === 'Running';
+        const ruleName = document.getElementById('rule-name').value;
         const ruleData = {
             rule_id: document.getElementById('rule-id').value || null,
-            name: document.getElementById('rule-name').value,
+            name: ruleName,
             is_enabled: document.getElementById('rule-enabled').checked,
             priority: 1, // Default priority
         };
@@ -473,16 +546,16 @@ document.addEventListener('DOMContentLoaded', () => {
         ruleData.response_action = responseAction;
 
         try {
+            let savedRule;
             if (selectedRuleId) {
-                await api.put(`/api/rules/${selectedRuleId}`, ruleData);
+                savedRule = await api.put(`/api/rules/${selectedRuleId}`, ruleData);
             } else {
-                const newRule = await api.post('/api/rules', ruleData);
-                selectedRuleId = newRule.rule_id;
+                savedRule = await api.post('/api/rules', ruleData);
+                selectedRuleId = savedRule.rule_id;
             }
-            showToast('Rule saved!');
-            await fetchAndRenderRules(); // Use await to ensure rules are fresh
+            showToast(`Rule '${savedRule.name}' saved!`);
+            await fetchAndRenderRules();
 
-            // If the sniffer was running, restart it to apply changes
             if (isSnifferRunning) {
                 showToast('Restarting sniffer to apply changes...');
                 await api.post('/api/control/stop');
@@ -495,7 +568,9 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("Failed to save rule:", error);
             showToast(`Error saving rule: ${error.message}`, true);
         }
-    });
+    };
+
+    saveRuleBtn.addEventListener('click', handleSaveRule);
     
     deleteRuleBtn.addEventListener('click', async () => {
         if (!selectedRuleId) {
@@ -794,6 +869,18 @@ document.addEventListener('DOMContentLoaded', () => {
         updateStatus(false);
         fetchAndRenderRules();
     }
+
+    // --- Keyboard Shortcuts ---
+    document.addEventListener('keydown', (e) => {
+        // Check if Ctrl or Cmd key is pressed along with 'S'
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault(); // Prevent the browser's save dialog
+            // Check if the editor is visible before saving
+            if (!ruleEditor.classList.contains('hidden')) {
+                handleSaveRule();
+            }
+        }
+    });
 
     initializeApp();
 });
